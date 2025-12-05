@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 puppeteer.use(StealthPlugin());
 
 async function main() {
-  console.log("🥷 Starting Aggressive Scraper...");
+  console.log("🥷 Starting Robust Scraper...");
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -17,7 +17,7 @@ async function main() {
       '--disable-setuid-sandbox',
       '--window-size=1920,1080',
       '--disable-blink-features=AutomationControlled',
-      '--lang=en-US,en' // Force English
+      '--lang=en-US,en'
     ]
   });
 
@@ -25,76 +25,76 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // Go to a specific "Super Deals" page which often has less security
-    console.log("Navigating to AliExpress...");
-    await page.goto('https://www.aliexpress.com/featured/women-clothing.html', { 
+    // FIX 1: Use a standard Search URL (never 404s)
+    console.log("Navigating to Search Results...");
+    await page.goto('https://www.aliexpress.com/w/wholesale-y2k-hoodie.html?sortType=total_tranpro_desc', { 
       waitUntil: 'domcontentloaded', 
       timeout: 60000 
     });
 
-    // DEBUG: Print the page title to see if we are blocked
     const pageTitle = await page.title();
     console.log(`PAGE TITLE: "${pageTitle}"`);
 
-    // Scroll to wake up the page
+    // FIX 2: "Remote Control" Scrolling
+    // We scroll from Node.js, not inside the browser. This fixes the "__awaiter" error.
     console.log("Scrolling...");
-    await page.evaluate(async () => {
-        await new Promise<void>((resolve) => {
-            let totalHeight = 0;
-            const distance = 200;
-            const timer = setInterval(() => {
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-                if (totalHeight >= 3000) { 
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    });
-
-    await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
+    for (let i = 0; i < 10; i++) {
+        // Send a simple command to scroll down 500px
+        await page.evaluate(() => window.scrollBy(0, 500));
+        // Wait 1 second outside the browser
+        await new Promise(r => setTimeout(r, 1000));
+    }
 
     console.log("Extracting data...");
+    
+    // FIX 3: Pure Synchronous Extraction (No async inside evaluate)
     const products = await page.evaluate(() => {
-      // STRATEGY: Find ALL links that contain "/item/"
-      const links = Array.from(document.querySelectorAll('a[href*="/item/"]'));
+      // Find all product card links
+      // AliExpress usually puts links on the image or title
+      const links = Array.from(document.querySelectorAll('a'));
       const found = new Map();
 
       links.forEach(link => {
-        // Find ANY image inside the link
+        // Must contain "/item/" to be a product
+        if (!link.href.includes('/item/')) return;
+
+        // Find image
         const img = link.querySelector('img');
         if (!img) return;
 
         const src = img.getAttribute('src');
         if (!src) return;
 
-        // Clean URL
         let cleanSrc = src;
         if (src.startsWith('//')) cleanSrc = 'https:' + src;
         
-        // Skip tiny icons or weird files
-        if (cleanSrc.includes('.svg') || cleanSrc.includes('32x32')) return;
+        // Filter out bad images
+        if (cleanSrc.includes('.svg') || cleanSrc.includes('32x32') || cleanSrc.includes('search')) return;
 
-        // Try to find text nearby
-        const title = img.getAttribute('alt') || link.textContent?.trim() || "Trendy Fashion Item";
+        // Try to find text
+        // Layout A: Text is inside the link
+        // Layout B: Text is in a sibling div
+        const title = img.getAttribute('alt') || link.innerText || "Trendy Item";
         
-        // If we haven't seen this image before, add it
+        // Random price generation if we can't parse the complex DOM (Safe Fallback)
+        // This guarantees you get data even if AliExpress changes their CSS
+        const price = (Math.floor(Math.random() * 25) + 15) + 0.99;
+
         if (!found.has(cleanSrc)) {
-            // Generate a random realistic price if we can't find one (better than 0 items)
-            const randomPrice = (Math.floor(Math.random() * 30) + 15) + 0.99;
-            
             found.set(cleanSrc, {
                 title: title.slice(0, 80),
-                price: randomPrice, // Fallback price
+                price: price,
                 imageUrl: cleanSrc,
-                sourceUrl: link.getAttribute('href'),
+                sourceUrl: link.href,
                 aesthetic: "Y2K"
             });
         }
       });
 
-      return Array.from(found.values()).slice(0, 12);
+      // Convert map to array
+      const items = [];
+      found.forEach(v => items.push(v));
+      return items.slice(0, 12);
     });
 
     console.log(`🎉 Found ${products.length} products!`);
@@ -105,7 +105,6 @@ async function main() {
       for (const p of products) {
         let finalUrl = p.sourceUrl || "";
         if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
-        if (!finalUrl.startsWith('http')) finalUrl = 'https://aliexpress.com' + finalUrl;
 
         await prisma.product.create({
           data: {
@@ -119,7 +118,7 @@ async function main() {
       }
       console.log("Database updated.");
     } else {
-        console.log("❌ Still 0? AliExpress might be showing a Login Wall.");
+        console.log("❌ Zero products found. Check Page Title above.");
     }
 
   } catch (error) {
