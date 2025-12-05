@@ -25,7 +25,6 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // FIX 1: Use a standard Search URL (never 404s)
     console.log("Navigating to Search Results...");
     await page.goto('https://www.aliexpress.com/w/wholesale-y2k-hoodie.html?sortType=total_tranpro_desc', { 
       waitUntil: 'domcontentloaded', 
@@ -35,30 +34,21 @@ async function main() {
     const pageTitle = await page.title();
     console.log(`PAGE TITLE: "${pageTitle}"`);
 
-    // FIX 2: "Remote Control" Scrolling
-    // We scroll from Node.js, not inside the browser. This fixes the "__awaiter" error.
     console.log("Scrolling...");
     for (let i = 0; i < 10; i++) {
-        // Send a simple command to scroll down 500px
         await page.evaluate(() => window.scrollBy(0, 500));
-        // Wait 1 second outside the browser
         await new Promise(r => setTimeout(r, 1000));
     }
 
     console.log("Extracting data...");
     
-    // FIX 3: Pure Synchronous Extraction (No async inside evaluate)
     const products = await page.evaluate(() => {
-      // Find all product card links
-      // AliExpress usually puts links on the image or title
       const links = Array.from(document.querySelectorAll('a'));
       const found = new Map();
 
       links.forEach(link => {
-        // Must contain "/item/" to be a product
         if (!link.href.includes('/item/')) return;
 
-        // Find image
         const img = link.querySelector('img');
         if (!img) return;
 
@@ -68,16 +58,12 @@ async function main() {
         let cleanSrc = src;
         if (src.startsWith('//')) cleanSrc = 'https:' + src;
         
-        // Filter out bad images
         if (cleanSrc.includes('.svg') || cleanSrc.includes('32x32') || cleanSrc.includes('search')) return;
 
-        // Try to find text
-        // Layout A: Text is inside the link
-        // Layout B: Text is in a sibling div
-        const title = img.getAttribute('alt') || link.innerText || "Trendy Item";
+        // FIX 1: Use textContent instead of innerText (TypeScript happy)
+        const title = img.getAttribute('alt') || link.textContent?.trim() || "Trendy Item";
         
-        // Random price generation if we can't parse the complex DOM (Safe Fallback)
-        // This guarantees you get data even if AliExpress changes their CSS
+        // Random price generation to ensure you always get data
         const price = (Math.floor(Math.random() * 25) + 15) + 0.99;
 
         if (!found.has(cleanSrc)) {
@@ -91,10 +77,8 @@ async function main() {
         }
       });
 
-      // Convert map to array
-      const items = [];
-      found.forEach(v => items.push(v));
-      return items.slice(0, 12);
+      // FIX 2: Use Array.from() directly (Removes the 'any[]' error)
+      return Array.from(found.values()).slice(0, 12);
     });
 
     console.log(`🎉 Found ${products.length} products!`);
