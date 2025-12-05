@@ -21,7 +21,7 @@ model Product {
   title       String
   price       Float
   imageUrl    String
-  sourceUrl   String
+  sourceUrl   String   @unique 
   aesthetic   String?  @default("Y2K")
   createdAt   DateTime @default(now())
 }
