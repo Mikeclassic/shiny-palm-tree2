@@ -1,12 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 
-// We use 'require' here to avoid TypeScript module issues with these plugins
+// We use 'require' here to avoid TypeScript module issues
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 const prisma = new PrismaClient();
 
-// Add stealth plugin to hide "I am a robot"
 puppeteer.use(StealthPlugin());
 
 async function main() {
@@ -24,21 +23,19 @@ async function main() {
 
   try {
     const page = await browser.newPage();
-    
-    // 1. Set a realistic Viewport
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // 2. Go to AliExpress
     console.log("Navigating to AliExpress Category...");
     await page.goto('https://www.aliexpress.com/w/wholesale-y2k-clothes.html?sortType=total_tranpro_desc', { 
       waitUntil: 'networkidle2', 
       timeout: 60000 
     });
 
-    // 3. HUMAN BEHAVIOR: Scroll down to trigger Lazy Loading
+    // --- FIX IS HERE ---
+    // We removed 'async' and 'await' from inside the browser function
     console.log("Scrolling to load items...");
-    await page.evaluate(async () => {
-        await new Promise<void>((resolve) => {
+    await page.evaluate(() => {
+        return new Promise<void>((resolve) => {
             let totalHeight = 0;
             const distance = 100;
             const timer = setInterval(() => {
@@ -58,18 +55,16 @@ async function main() {
     // Wait a bit for the new items to populate
     await new Promise(r => setTimeout(r, 2000));
 
-    // 4. Extract Real Data
     console.log("Extracting data...");
     const products = await page.evaluate(() => {
       const anchors = Array.from(document.querySelectorAll('a[href*="/item/"]'));
-      
       const uniqueItems = new Map();
 
       anchors.forEach(anchor => {
         const img = anchor.querySelector('img');
         if (!img) return;
 
-        // FIX: Use textContent instead of innerText for TypeScript compatibility
+        // Using textContent for TypeScript safety
         const container = anchor.closest('div[class*="card"]'); 
         const priceText = container ? (container.textContent || "") : "";
         const priceMatch = priceText.match(/[\d,]+\.\d{2}/);
@@ -96,7 +91,6 @@ async function main() {
 
     console.log(`🎉 Found ${products.length} REAL products!`);
 
-    // 5. Save to DB
     if (products.length > 0) {
       await prisma.product.deleteMany({});
       
