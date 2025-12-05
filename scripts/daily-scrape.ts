@@ -57,7 +57,7 @@ const TARGET_STORES = [
     "https://blackcraftcult.com",
     
     // --- Accessories & Niche ---
-    "https://l loungeunderwear.com",
+    "https://loungeunderwear.com",
     "https://skinnydiplondon.com",
     "https://starface.world",
     "https://wakemake.kr",
