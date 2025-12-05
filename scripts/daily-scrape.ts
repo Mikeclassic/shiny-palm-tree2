@@ -8,7 +8,7 @@ async function main() {
 
   // Launch the browser
   const browser = await puppeteer.launch({
-    headless: "true",
+    headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for GitHub Actions
   });
   
