@@ -1,5 +1,5 @@
-import { ClerkProvider } from '@clerk/nextjs'
-import './globals.css'
+import { ClerkProvider } from '@clerk/nextjs/server' // or @clerk/nextjs
+import './globals.css'  // <--- THIS LINE IS MISSING OR BROKEN!
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
