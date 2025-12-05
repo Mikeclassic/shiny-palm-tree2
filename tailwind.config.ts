@@ -1,7 +1,12 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}", // Backup path
+    "./components/**/*.{js,ts,jsx,tsx,mdx}", // Backup path
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}", // Backup path
+  ],
   theme: {
     extend: {
       colors: {
