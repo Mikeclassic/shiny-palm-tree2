@@ -14,3 +14,4 @@
 body {
   @apply bg-background text-foreground;
 }
+body { background-color: red !important; }
