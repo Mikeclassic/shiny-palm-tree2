@@ -12,7 +12,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Deps
-        run: npm ci
+        run: npm install
       - name: Push DB Schema
         run: npx prisma db push
         env:
