@@ -7,7 +7,10 @@ const prisma = new PrismaClient();
 const TARGET_STORES = [
   "https://tunnelvision.tv",      // Famous Y2K Brand
   "https://us.mingalondon.com",   // Streetwear
-  "https://www.disturbia.co.uk"   // Grunge/Goth
+  "https://www.disturbia.co.uk",   // Grunge/Goth
+"https://www.fashionnova.com",
+  "https://teddyfresh.com",
+  "https://www.ripndipclothing.com"
 ];
 
 async function main() {
