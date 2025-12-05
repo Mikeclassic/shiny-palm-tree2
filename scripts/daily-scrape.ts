@@ -1,116 +1,76 @@
 import { PrismaClient } from '@prisma/client';
 
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-
 const prisma = new PrismaClient();
 
-puppeteer.use(StealthPlugin());
+// We target REAL Y2K Fashion Brands that use Shopify.
+// We can access their product feed directly via JSON (The "Spy Method").
+const TARGET_STORES = [
+  "https://tunnelvision.tv",      // Famous Y2K Brand
+  "https://us.mingalondon.com",   // Streetwear
+  "https://www.disturbia.co.uk"   // Grunge/Goth
+];
 
 async function main() {
-  console.log("🥷 Starting Robust Scraper...");
+  console.log("🕵️ Starting Shopify Spy Protocol...");
+  
+  // Clear old data
+  await prisma.product.deleteMany({});
+  
+  let totalProducts = 0;
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox',
-      '--window-size=1920,1080',
-      '--disable-blink-features=AutomationControlled',
-      '--lang=en-US,en'
-    ]
-  });
-
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    console.log("Navigating to Search Results...");
-    await page.goto('https://www.aliexpress.com/w/wholesale-y2k-hoodie.html?sortType=total_tranpro_desc', { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 60000 
-    });
-
-    const pageTitle = await page.title();
-    console.log(`PAGE TITLE: "${pageTitle}"`);
-
-    console.log("Scrolling...");
-    for (let i = 0; i < 10; i++) {
-        await page.evaluate(() => window.scrollBy(0, 500));
-        await new Promise(r => setTimeout(r, 1000));
-    }
-
-    console.log("Extracting data...");
-    
-    const products = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      const found = new Map();
-
-      links.forEach(link => {
-        if (!link.href.includes('/item/')) return;
-
-        const img = link.querySelector('img');
-        if (!img) return;
-
-        const src = img.getAttribute('src');
-        if (!src) return;
-
-        let cleanSrc = src;
-        if (src.startsWith('//')) cleanSrc = 'https:' + src;
+  for (const storeUrl of TARGET_STORES) {
+    try {
+        console.log(`\n📡 Connecting to feed: ${storeUrl}...`);
         
-        if (cleanSrc.includes('.svg') || cleanSrc.includes('32x32') || cleanSrc.includes('search')) return;
-
-        // FIX 1: Use textContent instead of innerText (TypeScript happy)
-        const title = img.getAttribute('alt') || link.textContent?.trim() || "Trendy Item";
-        
-        // Random price generation to ensure you always get data
-        const price = (Math.floor(Math.random() * 25) + 15) + 0.99;
-
-        if (!found.has(cleanSrc)) {
-            found.set(cleanSrc, {
-                title: title.slice(0, 80),
-                price: price,
-                imageUrl: cleanSrc,
-                sourceUrl: link.href,
-                aesthetic: "Y2K"
-            });
-        }
-      });
-
-      // FIX 2: Use Array.from() directly (Removes the 'any[]' error)
-      return Array.from(found.values()).slice(0, 12);
-    });
-
-    console.log(`🎉 Found ${products.length} products!`);
-
-    if (products.length > 0) {
-      await prisma.product.deleteMany({});
-      
-      for (const p of products) {
-        let finalUrl = p.sourceUrl || "";
-        if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
-
-        await prisma.product.create({
-          data: {
-            title: p.title,
-            price: p.price,
-            imageUrl: p.imageUrl,
-            sourceUrl: finalUrl,
-            aesthetic: "Y2K"
-          }
+        // Native Fetch (Node 18+) - No Puppeteer needed for this method
+        const response = await fetch(`${storeUrl}/products.json?limit=10`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         });
-      }
-      console.log("Database updated.");
-    } else {
-        console.log("❌ Zero products found. Check Page Title above.");
-    }
 
-  } catch (error) {
-    console.error("Scrape Error:", error);
-  } finally {
-    await browser.close();
-    await prisma.$disconnect();
+        if (!response.ok) {
+            console.log(`Failed to fetch from ${storeUrl}: ${response.status}`);
+            continue;
+        }
+
+        const data = await response.json();
+        const items = data.products || [];
+
+        console.log(`Found ${items.length} items from ${storeUrl}`);
+
+        for (const item of items) {
+            // 1. Get Image
+            const imageUrl = item.images?.[0]?.src;
+            if (!imageUrl) continue;
+
+            // 2. Get Price (Shopify stores variants, we take the first one)
+            const variant = item.variants?.[0];
+            const price = variant?.price ? parseFloat(variant.price) : 29.99;
+
+            // 3. Get URL
+            const productUrl = `${storeUrl}/products/${item.handle}`;
+
+            // 4. Save to DB
+            await prisma.product.create({
+                data: {
+                    title: item.title,
+                    price: price,
+                    imageUrl: imageUrl,
+                    sourceUrl: productUrl,
+                    aesthetic: "Y2K" // You can write logic to guess this later
+                }
+            });
+            process.stdout.write("."); // Progress dot
+            totalProducts++;
+        }
+    } catch (e) {
+        console.error(`Error scraping ${storeUrl}:`, e);
+    }
   }
+
+  console.log(`\n\n✅ SUCCESS: Database populated with ${totalProducts} REAL products.`);
+  await prisma.$disconnect();
 }
 
 main();
