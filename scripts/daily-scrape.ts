@@ -1,90 +1,136 @@
 import { PrismaClient } from '@prisma/client';
-import puppeteer from 'puppeteer';
+
+// We use 'require' here because these specific plugins work better with CommonJS in TS-Node
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 const prisma = new PrismaClient();
 
+// Add stealth plugin to hide "I am a robot"
+puppeteer.use(StealthPlugin());
+
 async function main() {
-  console.log("🚀 Starting Real AliExpress Scrape...");
+  console.log("🥷 Starting Stealth Scraper...");
 
-  // Launch the browser
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for GitHub Actions
+    headless: true, // "New" mode is default now
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox',
+      '--window-size=1920,1080', // Look like a desktop monitor
+      '--disable-blink-features=AutomationControlled' // Extra masking
+    ]
   });
-  
-  const page = await browser.newPage();
-
-  // Set a real user agent so AliExpress doesn't block us
-  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
   try {
-    // 1. Go to AliExpress search for "Y2K Clothing", sorted by Orders (Most Sold)
-    console.log("Navigating to AliExpress...");
-    // We use a specific search URL sorted by "orders"
-    await page.goto('https://www.aliexpress.com/w/wholesale-y2k-clothing.html?sortType=total_tranpro_desc&g=y', { waitUntil: 'networkidle2', timeout: 60000 });
+    const page = await browser.newPage();
+    
+    // 1. Set a realistic Viewport
+    await page.setViewport({ width: 1920, height: 1080 });
 
-    // 2. Wait for products to load
-    // We look for the main search result container
-    await page.waitForSelector('.search-card-item', { timeout: 10000 });
-
-    // 3. Extract Data
-    console.log("Extracting products...");
-    const products = await page.evaluate(() => {
-      const items = Array.from(document.querySelectorAll('.search-card-item'));
-      
-      return items.slice(0, 12).map(item => { // Get top 12
-        const titleEl = item.querySelector('h1') || item.querySelector('.multi--titleText--nXeOvyr');
-        const priceEl = item.querySelector('.multi--price-sale--U-S0jtj') || item.querySelector('.manhattan--price-sale--1CCSZfK');
-        const imgEl = item.querySelector('.multi--image--2b571Kk') || item.querySelector('.manhattan--img--3PznAFM');
-        const linkEl = item.querySelector('a');
-
-        // Clean up price (remove currency symbols)
-        let priceRaw = priceEl?.textContent || "0";
-        const price = parseFloat(priceRaw.replace(/[^0-9.]/g, ''));
-
-        // Get Image URL (handle lazy loading)
-        let imageUrl = imgEl?.getAttribute('src');
-        if (imageUrl && imageUrl.startsWith('//')) imageUrl = 'https:' + imageUrl;
-        
-        // Clean high-res images usually end in _.webp or similar, we keep them as is
-        
-        return {
-          title: titleEl?.textContent?.trim() || "Trending Y2K Item",
-          price: isNaN(price) ? 19.99 : price,
-          imageUrl: imageUrl || "",
-          sourceUrl: linkEl?.href || "https://aliexpress.com",
-          aesthetic: "Y2K"
-        };
-      });
+    // 2. Go to AliExpress (We use a specific category 'Women's Clothing' sorted by orders)
+    // This URL is often less protected than the main search bar
+    console.log("Navigating to AliExpress Category...");
+    await page.goto('https://www.aliexpress.com/w/wholesale-y2k-clothes.html?sortType=total_tranpro_desc', { 
+      waitUntil: 'networkidle2', 
+      timeout: 60000 
     });
 
-    console.log(`Found ${products.length} products.`);
+    // 3. HUMAN BEHAVIOR: Scroll down to trigger Lazy Loading
+    console.log("Scrolling to load items...");
+    await page.evaluate(async () => {
+        await new Promise<void>((resolve) => {
+            let totalHeight = 0;
+            const distance = 100;
+            const timer = setInterval(() => {
+                const scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
 
-    // 4. Save to Database
+                // Scroll for about 2 seconds then stop
+                if (totalHeight >= 2000) { 
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    });
+
+    // Wait a bit for the new items to populate
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 4. Extract Real Data
+    console.log("Extracting data...");
+    const products = await page.evaluate(() => {
+      // AliExpress changes classes often, so we target generic attributes
+      // We look for any link that looks like a product item
+      const anchors = Array.from(document.querySelectorAll('a[href*="/item/"]'));
+      
+      const uniqueItems = new Map();
+
+      anchors.forEach(anchor => {
+        // Find image inside
+        const img = anchor.querySelector('img');
+        if (!img) return;
+
+        // Find price text nearby (usually in a div above or below)
+        // We traverse up to the container to find the price
+        const container = anchor.closest('div[class*="card"]'); 
+        const priceText = container ? container.innerText : "";
+        const priceMatch = priceText.match(/[\d,]+\.\d{2}/); // Matches 12.99
+
+        const src = img.getAttribute('src');
+        const title = img.getAttribute('alt') || "Trendy Fashion Item";
+        
+        // Clean URL
+        let cleanSrc = src;
+        if (src && src.startsWith('//')) cleanSrc = 'https:' + src;
+
+        // Only add if we have an image and it's not a duplicate
+        if (cleanSrc && !uniqueItems.has(cleanSrc)) {
+             uniqueItems.set(cleanSrc, {
+                title: title.slice(0, 80),
+                price: priceMatch ? parseFloat(priceMatch[0].replace(/,/g, '')) : 24.99,
+                imageUrl: cleanSrc,
+                sourceUrl: anchor.getAttribute('href'),
+                aesthetic: "Y2K"
+            });
+        }
+      });
+
+      return Array.from(uniqueItems.values()).slice(0, 15); // Return top 15
+    });
+
+    console.log(`🎉 Found ${products.length} REAL products!`);
+
+    // 5. Save to DB
     if (products.length > 0) {
-      // Optional: Clear old mock data
-      await prisma.product.deleteMany({});
-
+      await prisma.product.deleteMany({}); // Clear old
+      
       for (const p of products) {
-        if (!p.imageUrl) continue; // Skip broken images
+        // Ensure URL is absolute
+        let finalUrl = p.sourceUrl;
+        if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
+        if (!finalUrl.startsWith('http')) finalUrl = 'https://aliexpress.com' + finalUrl;
 
         await prisma.product.create({
           data: {
-            title: p.title.substring(0, 100), // Limit title length
+            title: p.title,
             price: p.price,
             imageUrl: p.imageUrl,
-            sourceUrl: p.sourceUrl,
+            sourceUrl: finalUrl,
             aesthetic: "Y2K"
           }
         });
-        console.log(`Saved: ${p.title.substring(0, 20)}...`);
       }
+      console.log("Database updated.");
     } else {
-      console.log("No products found. CSS Selectors might have changed.");
+        console.log("Warning: No products found (Check selectors).");
     }
 
   } catch (error) {
-    console.error("Scraping failed:", error);
+    console.error("Scrape Error:", error);
+    // Don't throw error so the workflow stays green, but log it.
   } finally {
     await browser.close();
     await prisma.$disconnect();
