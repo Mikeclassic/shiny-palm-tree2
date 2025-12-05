@@ -10,7 +10,10 @@ const TARGET_STORES = [
   "https://www.disturbia.co.uk",   // Grunge/Goth
 "https://www.fashionnova.com",
   "https://teddyfresh.com",
-  "https://www.ripndipclothing.com"
+  "https://www.ripndipclothing.com",
+"https://www.gymshark.com/products.json",
+"https://kith.com/products.json",
+"https://colourpop.com/products.json"
 ];
 
 async function main() {
