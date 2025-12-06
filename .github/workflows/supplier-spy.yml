@@ -1,0 +1,26 @@
+name: Supplier Hunter Bot
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch: # Allows manual run button
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Deps
+        run: npm install
+        
+      - name: Generate Prisma
+        run: npx prisma generate
+
+      - name: Run Supplier Hunter
+        run: npm run hunt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
