@@ -3,12 +3,10 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const { title, price, imageUrl, preferences } = await req.json();
-
-    // 1. Sanitize the Key (Remove accidental spaces/newlines from copy-paste)
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 
     if (!apiKey) {
-        return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set in Vercel." }, { status: 500 });
+        return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set." }, { status: 500 });
     }
 
     const systemPrompt = `
@@ -32,10 +30,9 @@ export async function POST(req: Request) {
     4. End with 20 SEO hashtags.
     `;
 
-    // 2. Construct Payload
-    // Note: If x-ai/grok-4.1-fast fails, try x-ai/grok-2-vision-1212
+    // Using your specific requested model
     const payload = {
-      model: "x-ai/grok-2-vision-1212", // Switching to the STABLE vision model to ensure it works. You can change this back to 4.1 if you are sure it exists.
+      model: "x-ai/grok-4.1-fast", 
       messages: [
         {
           role: "system",
@@ -54,7 +51,6 @@ export async function POST(req: Request) {
       ]
     };
 
-    // 3. Send Request
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -66,12 +62,9 @@ export async function POST(req: Request) {
       body: JSON.stringify(payload)
     });
 
-    // 4. Handle Specific API Errors
     if (!response.ok) {
         const errorBody = await response.text();
         console.error("OpenRouter API Error:", response.status, errorBody);
-        
-        // Return the ACTUAL error from OpenRouter so we can see it in the UI
         return NextResponse.json({ error: `Provider Error (${response.status}): ${errorBody}` }, { status: response.status });
     }
 
