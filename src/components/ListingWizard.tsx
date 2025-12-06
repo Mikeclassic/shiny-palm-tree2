@@ -181,14 +181,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <RefreshCw size={12} /> Regenerate
                     </button>
                 </div>
-                
-                {/* --- FIX: INCREASED HEIGHT --- */}
+                {/* BIG TEXT BOX */}
                 <textarea 
                     value={generatedDesc} 
                     onChange={(e) => setGeneratedDesc(e.target.value)} 
                     className="w-full h-96 bg-black border border-gray-700 rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none leading-relaxed font-mono" 
                 />
-                
                 <div className="flex gap-3 pt-2">
                     <button onClick={() => saveToDb(generatedDesc)} className="px-6 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition flex items-center gap-2">{saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Save</button>
                     <button onClick={() => { navigator.clipboard.writeText(generatedDesc); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="flex-1 bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2">{copied ? <CheckCircle2 size={18} className="text-green-600" /> : <Copy size={18} />} {copied ? "Copied!" : "Copy to Depop"}</button>
