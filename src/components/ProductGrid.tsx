@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Zap, Wand2, Eye } from "lucide-react"; // Changed ShoppingBag to Eye
+import { Search, Zap, Wand2, Eye } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
@@ -20,7 +20,9 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
     <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {initialProducts.map((product) => {
-                const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
+                // --- THE FIX ---
+                // We append &q=aliexpress to force "Multisearch" (Image + Text)
+                const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
                 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col relative">
@@ -68,7 +70,6 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                                     href={product.sourceUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    // CHANGED: White bg -> Gray hover, Icon ShoppingBag -> Eye, Text Store -> Spy Source
                                     className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-2 rounded-lg text-xs font-bold transition border border-gray-700"
                                 >
                                     <Eye size={14} /> Spy Source
