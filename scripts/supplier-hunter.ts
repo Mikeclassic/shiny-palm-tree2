@@ -7,13 +7,13 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-const randomSleep = (min = 2000, max = 5000) => {
+const randomSleep = (min = 1000, max = 3000) => {
   const ms = Math.floor(Math.random() * (max - min + 1) + min);
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 async function main() {
-  console.log("🦖 Starting Omnivore Hunter (Source Scan + Multi-Engine)...");
+  console.log("⚡ Starting Social Imposter Protocol (Facebook UA Bypass)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -52,88 +52,112 @@ async function main() {
     password: process.env.PROXY_PASSWORD
   });
 
-  await page.setViewport({ width: 1920, height: 1080 });
-
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // --- STEP 1: GOOGLE LENS (ID EXTRACTION) ---
+        // ============================================================
+        // PHASE 1: NUCLEAR ID EXTRACTION (Google Lens)
+        // ============================================================
+        // We use a standard Desktop User Agent for Google to render the results correctly.
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+        
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Consent
+        // Anti-Consent (EU/Germany)
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser') or contains(., 'Alle ablehnen')]");
-            if (consentButton.length > 0) await consentButton[0].click();
-        } catch (err) {}
+             const btns = await page.$x("//button[contains(., 'Reject') or contains(., 'refuser') or contains(., 'ablehnen')]");
+             if (btns.length > 0) await btns[0].click();
+        } catch(e) {}
 
         await randomSleep(2000, 4000);
 
-        // STRATEGY: SCAN SOURCE CODE FOR ID
-        // AliExpress IDs are 15-16 digits and usually start with 1005
-        let itemId = await page.evaluate(() => {
-            // 1. Try Links
-            const anchors = Array.from(document.querySelectorAll('a'));
-            const link = anchors.find(a => a.href.includes('aliexpress.com/item'));
-            if (link) {
-                const match = link.href.match(/\/item\/(\d+)\.html/);
-                if (match) return match[1];
-            }
-
-            // 2. Try Source Code Regex (The "Nuclear" Option)
-            // This finds the ID even if the link is hidden in JSON or redirects
-            const bodyText = document.body.innerHTML;
-            const idMatch = bodyText.match(/1005\d{12}/); // Matches 1005 + 12 digits
-            if (idMatch) return idMatch[0];
-
-            return null;
+        // EXTRACTION: We scan the full HTML string for the ID pattern.
+        // AliExpress IDs always start with "1005" and are 16 digits long.
+        const itemId = await page.evaluate(() => {
+            const html = document.body.innerHTML;
+            // Regex to find 100500... followed by digits
+            const match = html.match(/100500\d{10}/); 
+            return match ? match[0] : null;
         });
 
         if (!itemId) {
-            console.log("   ❌ No AliExpress ID found in source code.");
+            console.log("   ❌ No AliExpress ID found in Lens data.");
             await prisma.product.update({ where: { id: product.id }, data: { lastSourced: new Date() }});
             continue;
         }
 
-        console.log(`   🆔 Found Item ID: ${itemId}`);
-        const cleanLink = `https://www.aliexpress.com/item/${itemId}.html`;
+        console.log(`   🆔 Found ID: ${itemId}`);
+        const targetUrl = `https://www.aliexpress.com/item/${itemId}.html`;
 
-        // --- STEP 2: SEARCH ENGINE PRICE CHECK ---
-        let foundPrice = 0;
-
-        // ATTEMPT A: GOOGLE (Forced US English)
-        console.log("   🌎 Checking Google (US Mode)...");
-        // &gl=us (Geo Location US) &hl=en (Language English) -> Critical for parsing
-        await page.goto(`https://www.google.com/search?q=${itemId}+site:aliexpress.com&gl=us&hl=en`, { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 3000);
+        // ============================================================
+        // PHASE 2: THE FACEBOOK SPOOF (Bypass Block)
+        // ============================================================
+        // We switch identity to "facebookexternalhit".
+        // AliExpress DOES NOT block this agent because they want link previews on Social Media.
         
-        foundPrice = await extractPriceFromPage(page);
+        await page.setUserAgent('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)');
+        
+        console.log(`   👻 Impersonating Facebook Bot to visit URL...`);
+        
+        // We intercept requests to block images/css for speed
+        await page.setRequestInterception(true);
+        const interceptor = (req) => {
+            if (['image', 'stylesheet', 'font'].includes(req.resourceType())) req.abort();
+            else req.continue();
+        };
+        page.on('request', interceptor);
 
-        // ATTEMPT B: BING (Fallback if Google fails)
-        if (foundPrice === 0) {
-            console.log("   ⚠️ Google failed. Checking Bing...");
-            await page.goto(`https://www.bing.com/search?q=site%3Aaliexpress.com+${itemId}`, { waitUntil: 'domcontentloaded' });
-            await randomSleep(2000, 3000);
-            foundPrice = await extractPriceFromPage(page);
+        try {
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        } catch (e) {
+            console.log("   ⚠️ Navigation timeout (Checking meta tags anyway...)");
         }
+        
+        page.off('request', interceptor);
+        await page.setRequestInterception(false);
 
-        // --- STEP 3: SAVE RESULTS ---
-        if (foundPrice > 0) {
-            console.log(`   💰 Price Found: $${foundPrice}`);
+        // ============================================================
+        // PHASE 3: META TAG EXTRACTION
+        // ============================================================
+        // Social bots read "Open Graph" (og) tags. AliExpress always populates these for Facebook.
+        
+        const metaData = await page.evaluate(() => {
+            const getMeta = (prop) => {
+                const el = document.querySelector(`meta[property="${prop}"]`);
+                return el ? el.getAttribute('content') : null;
+            };
+            return {
+                price: getMeta('og:price:amount'),
+                currency: getMeta('og:price:currency'),
+                title: getMeta('og:title')
+            };
+        });
+
+        if (metaData.price) {
+            console.log(`   💰 Price Found via Meta: ${metaData.price} ${metaData.currency}`);
+            
+            // Normalize price (handle "35,50" vs "35.50")
+            let cleanPrice = parseFloat(metaData.price.replace(',', '.'));
+
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: cleanLink,
-                    supplierPrice: foundPrice,
+                    supplierUrl: targetUrl,
+                    supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not found in search snippets.");
-            // Save link anyway
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: cleanLink, lastSourced: new Date() }});
+            console.log("   ⚠️ Meta tags hidden.");
+            // Log 200 chars of body to debug
+            const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 200));
+            console.log(`   (Debug Body: ${bodySnippet.replace(/\n/g, '')})`);
+            
+            // Save URL anyway
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: targetUrl, lastSourced: new Date() }});
         }
 
     } catch (e) {
@@ -144,36 +168,6 @@ async function main() {
   await browser.close();
   await prisma.$disconnect();
   console.log("\n🏁 Hunt Complete.");
-}
-
-// Helper: Scans page text for Price patterns
-async function extractPriceFromPage(page) {
-    return await page.evaluate(() => {
-        const text = document.body.innerText;
-        // Strategies:
-        // 1. "US $12.34"
-        // 2. "$12.34"
-        // 3. "EUR 12,34"
-        const patterns = [
-            /US\s?\$(\d+(\.\d+)?)/,
-            /\$(\d+(\.\d+)?)/,
-            /€\s?(\d+([.,]\d+)?)/,
-            /(\d+([.,]\d+)?)\s?€/
-        ];
-
-        for (const p of patterns) {
-            const match = text.match(p);
-            if (match) {
-                // Return the raw number string
-                let raw = match[1] || match[0];
-                // Fix European commas
-                if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
-                const val = parseFloat(raw.replace(/[^0-9.]/g, ''));
-                if (val > 0.1) return val;
-            }
-        }
-        return 0;
-    });
 }
 
 main();
