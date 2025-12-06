@@ -13,16 +13,17 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Hunter (Original URL Logic + Advanced Price Extraction)...");
+  console.log("🕵️ Starting Hunter (Limit: 10 Products)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
+  // Find products without a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
-    take: 3, 
+    take: 10, // <--- UPDATED TO 10
     orderBy: { createdAt: 'desc' }
   });
 
@@ -30,6 +31,8 @@ async function main() {
     console.log("✅ All products have suppliers!");
     return;
   }
+
+  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
 
   // 1. LAUNCH BROWSER (Standard Desktop for Google Lens)
   const browser = await puppeteer.launch({
