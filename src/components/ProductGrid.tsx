@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShoppingBag, Zap, Wand2 } from "lucide-react";
+import { Search, Zap, Wand2, Eye } from "lucide-react"; // Changed ShoppingBag to Eye
 import ListingWizard from "./ListingWizard";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
@@ -68,9 +68,10 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                                     href={product.sourceUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-white hover:bg-gray-200 text-black py-2 rounded-lg text-xs font-bold transition"
+                                    // CHANGED: White bg -> Gray hover, Icon ShoppingBag -> Eye, Text Store -> Spy Source
+                                    className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-2 rounded-lg text-xs font-bold transition border border-gray-700"
                                 >
-                                    <ShoppingBag size={14} /> Store
+                                    <Eye size={14} /> Spy Source
                                 </a>
                             </div>
                         </div>
