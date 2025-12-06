@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🦁 Starting Expert Hunter (Warm-up Protocol)...");
+  console.log("🇫🇷 Starting Native Mimicry Hunter (French/EUR Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -31,7 +31,7 @@ async function main() {
     return;
   }
 
-  // 1. LAUNCH BROWSER
+  // 1. LAUNCH BROWSER (Desktop Mode)
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -39,6 +39,7 @@ async function main() {
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1920,1080',
+        '--lang=fr-FR,fr', // Tell Chrome we are French
         `--proxy-server=http://${process.env.PROXY_SERVER}`
     ]
   });
@@ -54,21 +55,27 @@ async function main() {
 
   await page.setViewport({ width: 1920, height: 1080 });
 
-  // 3. WARM-UP PHASE (Critical Step)
-  // We visit the homepage FIRST to get legitimate cookies for the Proxy's IP region.
-  console.log("   ☕ Warming up cookies on Homepage...");
+  // 3. SET FRENCH HEADERS (Crucial for Proxy Match)
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Referer': 'https://www.google.fr/'
+  });
+
+  // NOTE: We do NOT force US cookies anymore. We let the French proxy dictate the region.
+
+  // 4. WARM UP ON FRENCH HOMEPAGE
+  console.log("   ☕ Warming up on fr.aliexpress.com...");
   try {
-      await page.goto('https://www.aliexpress.com/', { waitUntil: 'domcontentloaded' });
+      await page.goto('https://fr.aliexpress.com/', { waitUntil: 'domcontentloaded' });
       await randomSleep(2000, 4000);
       
-      // Close "Welcome" popup if it exists
+      // Close "Accept Cookies" or "Welcome" French modals
       try {
-          const closeBtn = await page.$x("//div[contains(@class, 'close-layer') or contains(@class, 'pop-close-btn')]");
+          const closeBtn = await page.$x("//div[contains(@class, 'close-layer') or contains(@class, 'pop-close-btn') or contains(text(), 'Accepter')]");
           if (closeBtn.length > 0) await closeBtn[0].click();
       } catch (e) {}
-      
   } catch (e) {
-      console.log("   ⚠️ Homepage warm-up failed, continuing anyway...");
+      console.log("   ⚠️ Warm-up glitch (ignoring)...");
   }
 
   for (const product of productsToHunt) {
@@ -77,15 +84,11 @@ async function main() {
 
         // --- STEP 1: GOOGLE LENS ---
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
-        
-        // Use Google as Referer
-        await page.setExtraHTTPHeaders({ 'Referer': 'https://www.google.com/' });
-        
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Google Consent
+        // Handle Consent (French "Tout refuser" or "J'accepte")
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser')]");
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'agree') or contains(., 'accepte') or contains(., 'refuser')]");
             if (consentButton.length > 0) await consentButton[0].click();
         } catch (err) {}
 
@@ -106,82 +109,86 @@ async function main() {
             continue;
         }
 
-        // --- STEP 2: NORMALIZE URL ---
-        // We force WWW but we DO NOT inject "US" cookies. We let the warm-up cookies handle the region.
-        foundLink = foundLink.replace(/\/\/[a-z]{2}\.aliexpress\.com/, '//www.aliexpress.com');
-        console.log(`   🔗 Link: ${foundLink}`);
-
-        // --- STEP 3: NAVIGATE WITH REFERER ---
-        // This tells AliExpress we came from Google Search, which is trusted.
-        await page.setExtraHTTPHeaders({ 'Referer': 'https://www.google.com/' });
+        // --- STEP 2: LOCALIZE URL (Force FR Domain) ---
+        // Convert "www.aliexpress.com" -> "fr.aliexpress.com" to match the proxy
+        let targetUrl = foundLink.replace('//www.aliexpress', '//fr.aliexpress');
+        // Ensure it doesn't duplicate if it was already fr
+        if (!targetUrl.includes('fr.aliexpress')) {
+             targetUrl = targetUrl.replace('aliexpress.com', 'fr.aliexpress.com');
+        }
+        
+        console.log(`   🔗 Visiting: ${targetUrl}`);
 
         try {
-            await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
         } catch (e) {
-            console.log("   ⚠️ Navigation timeout (Checking content...)");
+            console.log("   ⚠️ Navigation timeout (Proceeding check)...");
         }
 
-        await randomSleep(3000, 5000);
+        await randomSleep(2000, 4000);
 
-        // --- STEP 4: DIAGNOSE BLOCKING ---
-        const bodyText = await page.evaluate(() => document.body.innerText);
-        const bodyLen = bodyText.length;
-        
-        if (bodyLen < 2000) {
-            console.log(`   ⚠️ BLOCKED. Page Size: ${bodyLen} chars.`);
-            console.log(`   📄 Page Says: "${bodyText.substring(0, 100).replace(/\n/g, ' ')}..."`);
-            
-            // If it's a "Slide to verify" or "Click to verify", we might need a captcha solver service.
-            // But for now, we just skip.
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
-            continue;
-        }
-
-        // --- STEP 5: EXTRACTION ---
+        // --- STEP 3: PRICE EXTRACTION (EURO & FR FORMAT) ---
         const priceData = await page.evaluate(() => {
             try {
-                // Method 1: Global Data
+                // Method 1: Global Data (runParams)
                 if (window.runParams && window.runParams.data) {
                     const d = window.runParams.data;
-                    if (d.priceModule?.minActivityAmount?.value) return d.priceModule.minActivityAmount.value;
-                    if (d.productInfoComponent?.price?.minPrice) return d.productInfoComponent.price.minPrice;
+                    const priceObj = d.priceModule?.minActivityAmount || d.priceModule?.maxAmount || d.productInfoComponent?.price;
+                    if (priceObj) {
+                        return priceObj.value || priceObj.minPrice;
+                    }
                 }
                 
-                // Method 2: Regex on Body (Works for any currency/language)
-                // Looks for digits following a currency symbol
+                // Method 2: Schema (JSON-LD)
+                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+                for (const s of scripts) {
+                    const json = JSON.parse(s.innerText);
+                    if (json['@type'] === 'Product' && json.offers) {
+                        return Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
+                    }
+                }
+
+                // Method 3: Visual Text (Euro Specific)
+                // Looks for "12,34 €" or "€12,34"
                 const text = document.body.innerText;
-                const match = text.match(/[\$€£]\s*(\d+([.,]\d+)?)/);
-                if (match && match[1]) return match[1];
+                // Regex matches: digits, maybe dot/comma, maybe spaces, then Euro symbol (or vice versa)
+                const match = text.match(/(\d+[\.,]\d+)\s*€|€\s*(\d+[\.,]\d+)/);
+                if (match) return match[1] || match[2];
+                
+                // Fallback for "US $" if page defaulted to English
+                const usMatch = text.match(/US\s?\$(\d+(\.\d+)?)/);
+                if (usMatch) return usMatch[1];
 
             } catch (e) { return null; }
             return null;
         });
 
         if (priceData) {
-            // Clean price (handle commas for EU proxies)
-            let cleanPrice = 0;
+            // Clean Price: French uses comma for decimals (12,99 -> 12.99)
             let rawString = priceData.toString();
-            
-            // If "12,34" -> "12.34"
             if (rawString.includes(',') && !rawString.includes('.')) {
                 rawString = rawString.replace(',', '.');
             }
-            cleanPrice = parseFloat(rawString.replace(/[^0-9.]/g, ''));
+            // Remove non-numeric/dot
+            const cleanPrice = parseFloat(rawString.replace(/[^0-9.]/g, ''));
 
-            console.log(`   💰 Price Found: ${cleanPrice}`);
+            console.log(`   💰 Price Found: €${cleanPrice} (Saved as number)`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: foundLink,
+                    supplierUrl: targetUrl,
                     supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not found (Structure changed or OOS).");
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
+            const bodyLen = await page.evaluate(() => document.body.innerText.length);
+            console.log(`   ⚠️ Price hidden. (Body Size: ${bodyLen})`);
+            
+            // Still save the URL so the user can check manually
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: targetUrl, lastSourced: new Date() }});
         }
 
     } catch (e) {
