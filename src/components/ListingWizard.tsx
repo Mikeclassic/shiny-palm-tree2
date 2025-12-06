@@ -28,13 +28,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Calculate Profit
   useEffect(() => {
     const sell = parseFloat(sellingPrice) || 0;
     const cost = parseFloat(supplierPrice) || 0;
     
     if (sell > 0 && cost > 0) {
-      const fees = sell * 0.13; // Approx 13% fees
+      const fees = sell * 0.13;
       const net = sell - cost - fees;
       setProfit(parseFloat(net.toFixed(2)));
     } else {
@@ -42,7 +41,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   }, [supplierPrice, sellingPrice]);
 
-  // Save to Database
   const saveToDb = async (desc: string) => {
     setSaving(true);
     try {
@@ -61,7 +59,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   };
 
-  // Generate AI
   const generateWithAI = async () => {
     setLoading(true);
     try {
@@ -76,15 +73,20 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         }),
       });
       
-      if (!res.ok) throw new Error("Failed");
-      
       const data = await res.json();
+
+      // IF ERROR: Throw it so we catch it below
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Server Error ${res.status}`);
+      }
+      
       setGeneratedDesc(data);
       setStep("result");
       saveToDb(data);
 
-    } catch (e) {
-      alert("Error generating. Check API Key.");
+    } catch (e: any) {
+      // THIS IS THE FIX: Shows the real error message
+      alert(`Generation Failed: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -93,8 +95,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
         <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950">
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Sparkles className="text-purple-500 fill-purple-500" size={20} /> 
@@ -106,11 +106,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         </div>
 
         <div className="p-6 overflow-y-auto flex-1">
-          
           {step === "options" ? (
              <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
-                
-                {/* Profit Calc */}
                 <div className="bg-gray-950 p-4 rounded-xl border border-gray-800">
                     <div className="flex items-center gap-2 text-sm text-gray-400 font-bold mb-3">
                         <Calculator size={14} /> Quick Profit Check
@@ -131,7 +128,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     </div>
                 </div>
 
-                {/* AI Options */}
                 <div className="space-y-4">
                     <h4 className="font-bold text-white">Tell the AI about this item:</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
