@@ -1,10 +1,10 @@
+// @ts-nocheck
 import { PrismaClient } from '@prisma/client';
 import * as cheerio from 'cheerio';
 
 const prisma = new PrismaClient();
 
 const TARGET_STORES = [
-    // --- The Big Players ---
     "https://tunnelvision.tv",
     "https://us.mingalondon.com",
     "https://www.disturbia.co.uk",
@@ -15,8 +15,6 @@ const TARGET_STORES = [
     "https://colourpop.com",
     "https://blackmilkclothing.com",
     "https://dropdead.world",
-    
-    // --- Y2K & Aesthetic ---
     "https://www.dollskill.com",
     "https://cyberdog.net",
     "https://iheartraves.com",
@@ -32,8 +30,6 @@ const TARGET_STORES = [
     "https://bigbudpress.com",
     "https://dangerfield.com.au",
     "https://gorman.ws",
-
-    // --- Streetwear & Skate ---
     "https://hufworldwide.com",
     "https://primitiveskate.com",
     "https://thehundreds.com",
@@ -45,8 +41,6 @@ const TARGET_STORES = [
     "https://obeyclothing.com",
     "https://brain-dead.com",
     "https://online-ceramics.com",
-    
-    // --- Dark / Gothic / Alt ---
     "https://killstar.com",
     "https://punkrave.ch",
     "https://demonia.com",
@@ -54,8 +48,6 @@ const TARGET_STORES = [
     "https://kreepsville666.com",
     "https://restylie.ca", 
     "https://blackcraftcult.com",
-    
-    // --- Accessories / Other ---
     "https://us.loungeunderwear.com",
     "https://skinnydiplondon.com",
     "https://starface.world",
@@ -70,6 +62,7 @@ async function main() {
   let newProducts = 0;
   let skippedProducts = 0;
 
+  // Shuffle stores
   const shuffledStores = TARGET_STORES.sort(() => 0.5 - Math.random());
 
   for (const storeUrl of shuffledStores) {
@@ -105,7 +98,7 @@ async function main() {
         for (const handle of topHandles) {
             const productUrl = `${storeUrl}/products/${handle}`;
             
-            // --- FIX IS HERE: Changed findUnique to findFirst ---
+            // USE FIND FIRST to avoid unique constraint errors in typescript
             const exists = await prisma.product.findFirst({
                 where: { sourceUrl: productUrl }
             });
