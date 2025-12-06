@@ -41,8 +41,7 @@ export async function POST(req: Request) {
         "X-Title": "GlowSeller",
       },
       body: JSON.stringify({
-        // We use Gemini Flash 2.0 because it is Free, Fast, and has Great Vision
-        model: "google/gemini-2.0-flash-001", 
+        model: "x-ai/grok-4.1-fast", 
         messages: [
           {
             role: "user",
