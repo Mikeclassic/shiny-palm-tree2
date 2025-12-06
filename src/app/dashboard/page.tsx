@@ -110,8 +110,9 @@ export default async function Dashboard({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-                // Construct the "Reverse Search" URL
-                const aliExpressSearchUrl = `https://www.google.com/search?tbm=isch&q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+                // --- CHANGED LOGIC HERE ---
+                // Direct AliExpress Search URL
+                const aliExpressSearchUrl = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(product.title)}`;
                 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
@@ -142,10 +143,10 @@ export default async function Dashboard({
                                     href={aliExpressSearchUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-blue-600 text-white py-2 rounded-lg text-xs font-bold transition group/btn"
-                                    title="Find Supplier on AliExpress"
+                                    className="flex items-center justify-center gap-2 bg-[#FF4747] hover:bg-[#ff2a2a] text-white py-2 rounded-lg text-xs font-bold transition group/btn"
+                                    title="Search on AliExpress"
                                 >
-                                    <Globe size={14} className="text-blue-400 group-hover/btn:text-white" /> Find Supplier
+                                    <Globe size={14} className="text-white" /> AliExpress
                                 </a>
                                 <a 
                                     href={product.sourceUrl} 
