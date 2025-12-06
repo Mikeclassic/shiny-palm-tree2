@@ -1,31 +1,51 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Database } from "lucide-react";
 
+// FORCE NO CACHE - This is the critical fix
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function Dashboard() {
+  const totalCount = await db.product.count();
+  
+  // Fetch 100 items (The old code had 9)
   const products = await db.product.findMany({
-    take: 9,
+    take: 100,
     orderBy: { createdAt: 'desc' }
   });
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
-        <p className="text-gray-400 mt-2">Curated high-margin items updated daily.</p>
+      {/* Header with Counter */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6">
+        <div>
+            <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
+            <p className="text-gray-400 mt-2">Top high-margin items from 50+ stores.</p>
+        </div>
+        
+        <div className="bg-gray-900 border border-gray-700 p-4 rounded-xl flex items-center gap-4">
+            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
+                <Database size={24} />
+            </div>
+            <div>
+                <p className="text-xs text-gray-400 uppercase font-bold">In Database</p>
+                <p className="text-xl font-mono text-white font-bold">
+                    {products.length} <span className="text-gray-500 text-sm">/ {totalCount} total</span>
+                </p>
+            </div>
+        </div>
       </div>
 
       {products.length === 0 ? (
         <div className="p-10 border border-dashed border-gray-800 rounded-xl text-center text-gray-500">
             <p>No products found yet.</p>
-            <p className="text-sm mt-2">Go to GitHub Actions and run "Daily Product Scraper" manually to populate data.</p>
+            <p className="text-sm mt-2">Go to GitHub Actions and run "Daily Product Scraper" manually.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => (
             <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300">
-                <div className="h-64 relative overflow-hidden">
+                <div className="h-64 relative overflow-hidden bg-black">
                     <img 
                         src={product.imageUrl} 
                         alt={product.title} 
@@ -36,15 +56,19 @@ export default async function Dashboard() {
                     </div>
                 </div>
                 <div className="p-5">
-                    <h3 className="font-bold text-lg truncate mb-1">{product.title}</h3>
+                    <h3 className="font-bold text-lg truncate mb-1" title={product.title}>{product.title}</h3>
                     <div className="flex justify-between items-end mt-4">
                         <div>
                             <p className="text-xs text-gray-500 uppercase tracking-wide">Market Price</p>
                             <p className="text-2xl font-mono text-white">${product.price}</p>
                         </div>
-                        <button className="bg-white text-black p-2 rounded-full hover:bg-purple-400 transition">
+                        <a 
+                            href={product.sourceUrl} 
+                            target="_blank" 
+                            className="bg-white text-black p-2 rounded-full hover:bg-purple-400 transition"
+                        >
                             <ArrowUpRight size={20} />
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
