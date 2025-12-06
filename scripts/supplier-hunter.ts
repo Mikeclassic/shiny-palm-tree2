@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Hunter (Lens URL + Facebook Price Protocol)...");
+  console.log("🕵️ Starting Hunter (Original URL Logic + Advanced Price Extraction)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -30,8 +30,6 @@ async function main() {
     console.log("✅ All products have suppliers!");
     return;
   }
-
-  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
 
   // 1. LAUNCH BROWSER (Standard Desktop for Google Lens)
   const browser = await puppeteer.launch({
@@ -53,7 +51,7 @@ async function main() {
     password: process.env.PROXY_PASSWORD
   });
 
-  // Start as a normal Desktop User (Crucial for Lens to work)
+  // Start as Desktop (Required for Lens to work)
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1920, height: 1080 });
 
@@ -62,14 +60,14 @@ async function main() {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
         // ============================================================
-        // STEP 1: URL EXTRACTION (PRESERVED EXACTLY AS WORKING)
+        // STEP 1: URL EXTRACTION (PRESERVED EXACTLY AS IS)
         // ============================================================
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Consent (Includes Polish keys: Odrzuć/Zaakceptuj)
+        // Handle Consent (Including Polish/German keys)
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam')]");
             if (consentButton.length > 0) {
@@ -98,14 +96,14 @@ async function main() {
         console.log(`   🔗 Found: ${foundLink}`);
 
         // ============================================================
-        // STEP 2: PRICE EXTRACTION (FACEBOOK PROTOCOL)
+        // STEP 2: MULTI-LAYER PRICE EXTRACTION
         // ============================================================
         
-        // SWITCH IDENTITY: Pretend to be Facebook to bypass AliExpress blocks
+        // 1. Switch to Facebook Bot (Bypasses Login Wall)
         console.log("   👻 Switching to Facebook Identity...");
         await page.setUserAgent('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)');
 
-        // Optimization: Block images/css to speed up the "bot" visit
+        // 2. Optimization: Block images for speed
         await page.setRequestInterception(true);
         const interceptor = (req) => {
             if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) req.abort();
@@ -113,56 +111,80 @@ async function main() {
         };
         page.on('request', interceptor);
 
-        // Visit AliExpress
+        // 3. Visit the Link
         try {
             await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 45000 });
         } catch (e) {
-            console.log("   ⚠️ Navigation timeout (Checking meta tags anyway...)");
+            console.log("   ⚠️ Navigation timeout (Checking content anyway...)");
         }
 
+        // Cleanup interception
         page.off('request', interceptor);
         await page.setRequestInterception(false);
 
-        // Extract Price from Meta Tags (Open Graph)
+        // 4. Extract Price (The Upgrade)
         const priceData = await page.evaluate(() => {
-            const getMeta = (prop) => {
-                const el = document.querySelector(`meta[property="${prop}"]`);
-                return el ? el.getAttribute('content') : null;
+            // Helper to clean prices (e.g., "45,99 zł" -> 45.99)
+            const parsePrice = (str) => {
+                if (!str) return null;
+                let raw = str.toString();
+                // If comma exists but no dot, replace comma with dot (European format)
+                if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
+                const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
+                return (isNaN(num) || num === 0) ? null : num;
             };
-            return {
-                amount: getMeta('og:price:amount'),
-                currency: getMeta('og:price:currency')
-            };
+
+            // STRATEGY A: Meta Tags (Facebook Standard)
+            const metaPrice = document.querySelector('meta[property="og:price:amount"]')?.getAttribute('content');
+            if (metaPrice) return { source: 'Meta Tag', price: parsePrice(metaPrice) };
+
+            // STRATEGY B: JSON-LD (Google Standard - hidden in script tags)
+            try {
+                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+                for (const s of scripts) {
+                    const json = JSON.parse(s.innerText);
+                    // Check for Product -> Offers
+                    if (json['@type'] === 'Product' && json.offers) {
+                        const val = Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
+                        if (val) return { source: 'JSON-LD', price: parsePrice(val) };
+                    }
+                }
+            } catch(e) {}
+
+            // STRATEGY C: Text Regex (Fallback for "pl.aliexpress" etc)
+            // Looks for currency symbols followed by numbers or vice versa
+            const text = document.body.innerText;
+            // Matches: "zł 45.00", "US $10", "10,00 €"
+            const match = text.match(/(?:zł|US\s?\$|€|£)\s*([\d.,]+)/i) || text.match(/([\d.,]+)\s*(?:zł|€|£)/i);
+            
+            if (match) {
+                // Determine which group captured the number
+                const numStr = match[1] || match[0]; 
+                return { source: 'Text Scan', price: parsePrice(numStr) };
+            }
+
+            return null;
         });
 
-        // Reset User Agent back to Desktop for the next loop (Important!)
+        // Reset User Agent for next loop
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
 
-        if (priceData.amount) {
-            // Fix Comma Decimals (European/Polish format)
-            let raw = priceData.amount.toString();
-            if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
-            
-            const cleanPrice = parseFloat(raw.replace(/[^0-9.]/g, ''));
-            const currency = priceData.currency || '';
-
-            console.log(`   💰 Price: ${cleanPrice} ${currency}`);
+        if (priceData && priceData.price) {
+            console.log(`   💰 Price Found: ${priceData.price} (via ${priceData.source})`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
                     supplierUrl: foundLink,
-                    supplierPrice: cleanPrice,
+                    supplierPrice: priceData.price,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price hidden (Meta tags missing).");
-            await prisma.product.update({
-                where: { id: product.id },
-                data: { supplierUrl: foundLink, lastSourced: new Date() }
-            });
+            console.log("   ⚠️ Price hidden. (Page Title: " + await page.title() + ")");
+            // Save URL anyway
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
     } catch (e) {
