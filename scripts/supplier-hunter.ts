@@ -13,17 +13,17 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Supplier Hunter (Bing Greedy Mode)...");
+  console.log("🕵️ Starting Supplier Hunter (DDG HTML Mode)...");
 
   if (!process.env.PROXY_SERVER) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products
+  // Find products to hunt
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
-    take: 3,
+    take: 3, 
     orderBy: { createdAt: 'desc' }
   });
 
@@ -37,16 +37,24 @@ async function main() {
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
-        '--no-sandbox',
+        '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1366,768',
-        `--proxy-server=http://${process.env.PROXY_SERVER}`
+        `--proxy-server=http://${process.env.PROXY_SERVER}`,
+        // FORCE ENGLISH LANGUAGE (Crucial for Proxies)
+        '--lang=en-US,en' 
     ]
   });
 
   const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(120000); 
+  
+  // Set extra headers to ensure we get English results
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9'
+  });
+
+  page.setDefaultNavigationTimeout(60000); 
   
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
@@ -55,30 +63,21 @@ async function main() {
 
   await page.setViewport({ width: 1366, height: 768 });
 
-  // 1. Verify Proxy Works
-  try {
-    console.log("   📡 Connecting to Proxy...");
-    await page.goto('http://ipv4.webshare.io/', { waitUntil: 'domcontentloaded' });
-    const ip = await page.evaluate(() => document.body.innerText);
-    console.log(`   ✅ Proxy Active. IP: ${ip.trim()}`);
-  } catch (e) {
-    console.log("   ⚠️ Proxy check slow, continuing anyway...");
-  }
-
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // 2. Bing Search (site:aliexpress.com)
-        const searchUrl = `https://www.bing.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+        // 1. DuckDuckGo HTML (The most reliable for bots)
+        // We use site:aliexpress.com to force exact matches
+        const searchUrl = `https://html.duckduckgo.com/html/?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-        await randomSleep(3000, 5000);
+        await randomSleep(2000, 3000);
 
-        // 3. GREEDY LINK EXTRACTION (The Fix)
-        // Grab ALL links on the page and filter for AliExpress items.
+        // 2. Extract Link
         const foundLink = await page.evaluate(() => {
-            const anchors = Array.from(document.querySelectorAll('a'));
+            // In DDG HTML, results are in 'a.result__a'
+            const anchors = Array.from(document.querySelectorAll('a.result__a'));
             
             const productLinks = anchors
                 .map(a => a.href)
@@ -88,9 +87,10 @@ async function main() {
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress link found on Bing.");
-            const title = await page.title();
-            console.log(`   (Page Title: ${title})`);
+            console.log("   ❌ No result found on DDG.");
+            // Log body to debug if blocked
+            const content = await page.content();
+            if(content.includes("If you are a human")) console.log("   ⚠️ DDG Captcha detected.");
 
             await prisma.product.update({
                 where: { id: product.id },
@@ -101,12 +101,14 @@ async function main() {
 
         console.log(`   🔗 Found: ${foundLink}`);
 
-        // 4. Visit AliExpress
-        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        // 3. Visit AliExpress
+        // We set a high timeout because residential proxies can be slow loading Ali
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 90000 });
+        
         await page.evaluate(() => { window.scrollBy(0, 500); }); 
-        await randomSleep(3000, 6000); 
+        await randomSleep(3000, 5000); 
 
-        // 5. Extract Price
+        // 4. Extract Price
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
@@ -114,25 +116,19 @@ async function main() {
                 '.uniform-banner-box-price',
                 '.product-price-current',
                 '[itemprop="price"]',
-                '.money',
-                'meta[name="description"]'
+                '.money' 
             ];
             
             for (const s of selectors) {
                 const el = document.querySelector(s);
-                // Check meta tags
-                if (s.includes('meta') && el) {
-                    const content = el.getAttribute('content');
-                    if (content && content.match(/\$\d+\.\d+/)) return content.match(/\$\d+\.\d+/)[0];
-                }
-                // Check visual elements
+                // Ensure text contains a number
                 if (el && el.innerText && /\d/.test(el.innerText)) return el.innerText;
             }
             return null;
         });
 
         if (priceText) {
-            const cleanPrice = parseFloat(priceText.toString().replace(/[^0-9.]/g, ''));
+            const cleanPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
             console.log(`   💰 Price: $${cleanPrice}`);
 
             await prisma.product.update({
