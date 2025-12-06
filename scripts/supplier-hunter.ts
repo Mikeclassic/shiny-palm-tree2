@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Supplier Hunter (Bing Mode)...");
+  console.log("🕵️ Starting Supplier Hunter (Bing Greedy Mode)...");
 
   if (!process.env.PROXY_SERVER) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -23,7 +23,7 @@ async function main() {
   // Find products
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
-    take: 3, 
+    take: 3,
     orderBy: { createdAt: 'desc' }
   });
 
@@ -37,7 +37,7 @@ async function main() {
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
-        '--no-sandbox', 
+        '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1366,768',
@@ -46,8 +46,6 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  
-  // Set timeout to 2 minutes (Proxies can be slow)
   page.setDefaultNavigationTimeout(120000); 
   
   await page.authenticate({
@@ -57,7 +55,7 @@ async function main() {
 
   await page.setViewport({ width: 1366, height: 768 });
 
-  // 1. Verify Proxy Works (Optional Debug)
+  // 1. Verify Proxy Works
   try {
     console.log("   📡 Connecting to Proxy...");
     await page.goto('http://ipv4.webshare.io/', { waitUntil: 'domcontentloaded' });
@@ -72,15 +70,15 @@ async function main() {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
         // 2. Bing Search (site:aliexpress.com)
-        // Bing is much less aggressive with Captchas than Google
         const searchUrl = `https://www.bing.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 4000);
+        await randomSleep(3000, 5000);
 
-        // 3. Extract Links from Bing Results
+        // 3. GREEDY LINK EXTRACTION (The Fix)
+        // Grab ALL links on the page and filter for AliExpress items.
         const foundLink = await page.evaluate(() => {
-            const anchors = Array.from(document.querySelectorAll('li.b_algo h2 a, li.b_algo a'));
+            const anchors = Array.from(document.querySelectorAll('a'));
             
             const productLinks = anchors
                 .map(a => a.href)
@@ -91,7 +89,6 @@ async function main() {
 
         if (!foundLink) {
             console.log("   ❌ No AliExpress link found on Bing.");
-            // Log page title to see if we got blocked
             const title = await page.title();
             console.log(`   (Page Title: ${title})`);
 
@@ -118,19 +115,17 @@ async function main() {
                 '.product-price-current',
                 '[itemprop="price"]',
                 '.money',
-                // Bing sometimes caches price in description meta
                 'meta[name="description"]'
             ];
             
             for (const s of selectors) {
                 const el = document.querySelector(s);
-                // Check meta tags specifically
+                // Check meta tags
                 if (s.includes('meta') && el) {
                     const content = el.getAttribute('content');
                     if (content && content.match(/\$\d+\.\d+/)) return content.match(/\$\d+\.\d+/)[0];
                 }
-                
-                // Check visible elements
+                // Check visual elements
                 if (el && el.innerText && /\d/.test(el.innerText)) return el.innerText;
             }
             return null;
