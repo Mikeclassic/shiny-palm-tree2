@@ -13,9 +13,9 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Greedy Supplier Hunter...");
+  console.log("🕵️ Starting DuckDuckGo Supplier Hunter...");
 
-  // Find products without a supplier URL
+  // 1. Find products needing a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -35,44 +35,42 @@ async function main() {
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--window-size=1366,768' // Standard Laptop size
+        '--window-size=1366,768'
     ]
   });
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1366, height: 768 });
-  
-  // Use a very standard User Agent
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // 1. Google Search
-        const searchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+        // --- THE FIX: USE DUCKDUCKGO HTML VERSION ---
+        // Google blocks GitHub Actions IPs. DDG is much friendlier.
+        // We use /html/ mode for faster, raw results.
+        const searchUrl = `https://duckduckgo.com/html/?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
-        await randomSleep(2000, 4000);
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+        await randomSleep(2000, 3000);
 
-        // 2. GREEDY LINK EXTRACTION (The Fix)
-        // Instead of looking for a specific selector, we grab ALL links and filter via Javascript
+        // 2. Extract Link from DDG Results
         const foundLink = await page.evaluate(() => {
-            // Get every single <a> tag on the page
+            // Find all anchor tags
             const anchors = Array.from(document.querySelectorAll('a'));
             
-            // Filter for actual product pages
+            // Look for AliExpress Item links
             const productLinks = anchors
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
 
-            // Return the first one found (Google ranks them by relevance)
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress text link found (Might be blocked or no results).");
-            // Mark lastSourced so we don't try it again immediately
+            console.log("   ❌ No result found on DuckDuckGo.");
+            // Mark as checked to prevent infinite loops on failed items
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -85,7 +83,7 @@ async function main() {
         // 3. Visit AliExpress
         await page.goto(foundLink, { waitUntil: 'domcontentloaded' });
         
-        // Scroll to trigger lazy loading
+        // Anti-bot scroll
         await page.evaluate(() => { window.scrollBy(0, 500); });
         await randomSleep(3000, 5000); 
 
@@ -97,12 +95,13 @@ async function main() {
                 '[class*="price--current"]',
                 '.uniform-banner-box-price',
                 '.product-price-current',
-                '[itemprop="price"]'
+                '[itemprop="price"]',
+                'div[class*="price"]' // fallback broad selector
             ];
             
             for (const s of selectors) {
                 const el = document.querySelector(s);
-                if (el && el.innerText) return el.innerText;
+                if (el && el.innerText && el.innerText.includes('$')) return el.innerText;
             }
             return null;
         });
@@ -121,7 +120,7 @@ async function main() {
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Link valid, but price hidden.");
+            console.log("   ⚠️ Link valid, but price hidden/dynamic.");
             await prisma.product.update({
                 where: { id: product.id },
                 data: { supplierUrl: foundLink, lastSourced: new Date() }
