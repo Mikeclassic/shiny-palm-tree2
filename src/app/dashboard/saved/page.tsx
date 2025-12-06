@@ -7,12 +7,12 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function SavedPage() {
-  // Fetch products that have a generated description (not null)
   const savedProducts = await db.product.findMany({
     where: {
         generatedDesc: { not: null }
     },
-    orderBy: { updatedAt: 'desc' }
+    // FIX: Changed from 'updatedAt' to 'createdAt' to prevent build error
+    orderBy: { createdAt: 'desc' }
   });
 
   return (
