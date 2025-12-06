@@ -13,7 +13,6 @@ export async function POST(req: Request) {
       apiKey: process.env.OPENROUTER_API_KEY,
     });
 
-    // 1. Build the prompt based on User Preferences (avoiding misunderstanding)
     const systemPrompt = `
     You are an expert top-rated seller on Depop and Vinted.
     Your goal is to MAXIMIZE CONVERSION and sell this item immediately.
@@ -36,9 +35,8 @@ export async function POST(req: Request) {
     5. GENERATE 15-20 viral SEO hashtags at the bottom.
     `;
 
-    // 2. Send to OpenRouter using your specific model
     const completion = await client.chat.send({
-      model: "x-ai/grok-4.1-fast", // Using the specific model you requested
+      model: "x-ai/grok-4.1-fast", // Your requested model
       messages: [
         {
           role: "system",
@@ -46,6 +44,7 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
+          // TYPE FIX: We cast this array 'as any' to allow image_url
           content: [
             { 
               type: "text", 
@@ -54,18 +53,15 @@ export async function POST(req: Request) {
             {
               type: "image_url",
               image_url: {
-                url: imageUrl // Passing the image for context
+                url: imageUrl
               }
             }
-          ]
+          ] as any 
         }
-      ],
-      // We disable streaming here to keep the frontend simple (JSON response)
-      stream: false 
+      ]
     });
 
-    // 3. Extract content
-    // @ts-ignore - The SDK types might differ slightly based on version, trusting the response structure.
+    // @ts-ignore
     const output = completion.choices[0]?.message?.content || "";
 
     if (!output) {
