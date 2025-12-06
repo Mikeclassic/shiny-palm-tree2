@@ -13,15 +13,14 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Proxy-Enabled Supplier Hunter...");
+  console.log("🕵️ Starting Proxy Supplier Hunter (DDG Mode)...");
 
-  // Validate Proxy Config
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
-      console.error("❌ Error: Missing PROXY_SERVER, PROXY_USERNAME, or PROXY_PASSWORD secrets.");
+      console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products without a supplier
+  // Find products
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -33,8 +32,9 @@ async function main() {
     return;
   }
 
-  console.log(`🎯 Targeting ${productsToHunt.length} products using Proxy...`);
+  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
 
+  // Launch Browser with Webshare Proxy
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -42,47 +42,45 @@ async function main() {
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1366,768',
-        `--proxy-server=${process.env.PROXY_SERVER}` // ROUTE THROUGH PROXY
+        `--proxy-server=http://${process.env.PROXY_SERVER}` // Webshare format
     ]
   });
 
   const page = await browser.newPage();
   
-  // AUTHENTICATE PROXY
+  // Authenticate Webshare
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
   });
 
   await page.setViewport({ width: 1366, height: 768 });
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // 1. Google Search (Restored Google because Proxy handles it now)
-        // We use "site:aliexpress.com" to ensure we only get Ali links
-        const searchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+        // 1. DuckDuckGo HTML Search (Bypasses Google Consent Walls)
+        // We use site:aliexpress.com to force exact matches
+        const searchUrl = `https://html.duckduckgo.com/html/?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await randomSleep(2000, 4000);
 
-        // 2. GREEDY LINK EXTRACTION
+        // 2. Extract Link
         const foundLink = await page.evaluate(() => {
-            const anchors = Array.from(document.querySelectorAll('a'));
+            // DDG HTML results are clean links
+            const anchors = Array.from(document.querySelectorAll('.result__a'));
             
             const productLinks = anchors
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
 
-            // Google puts the best result first
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress link found (Check keywords or proxy health).");
-            // Mark as checked
+            console.log("   ❌ No result found.");
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -90,25 +88,24 @@ async function main() {
             continue;
         }
 
-        console.log(`   🔗 Found Link: ${foundLink}`);
+        console.log(`   🔗 Found: ${foundLink}`);
 
         // 3. Visit AliExpress
-        await page.goto(foundLink, { waitUntil: 'domcontentloaded' });
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 60000 });
         
-        await page.evaluate(() => { window.scrollBy(0, 500); });
+        // Scroll slightly
+        await page.evaluate(() => { window.scrollBy(0, 300); });
         await randomSleep(3000, 5000); 
 
-        // 4. Extract Price
+        // 4. Extract Price (Robust)
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
                 '.price--current--I3Gb7_V', 
-                '[class*="price--current"]',
                 '.uniform-banner-box-price',
                 '.product-price-current',
                 '[itemprop="price"]',
-                // Fallback for different regions
-                'span[class*="price"]'
+                '.money' // Generic fallback
             ];
             
             for (const s of selectors) {
@@ -119,8 +116,15 @@ async function main() {
         });
 
         if (priceText) {
+            // Clean "$15.99" -> 15.99
             const cleanPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-            console.log(`   💰 Found Price: $${cleanPrice}`);
+            
+            if (isNaN(cleanPrice)) {
+                 console.log(`   ⚠️ Price found but invalid format: ${priceText}`);
+                 throw new Error("Invalid Price");
+            }
+
+            console.log(`   💰 Price: $${cleanPrice}`);
 
             await prisma.product.update({
                 where: { id: product.id },
