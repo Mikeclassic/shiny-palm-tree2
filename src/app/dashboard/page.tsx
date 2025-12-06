@@ -1,9 +1,8 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, Globe, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-// Force dynamic rendering so search works instantly
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -12,13 +11,11 @@ export default async function Dashboard({
 }: {
   searchParams: { q?: string; page?: string; aesthetic?: string };
 }) {
-  // 1. Parse Search Params
   const query = searchParams.q || "";
   const page = Number(searchParams.page) || 1;
   const aesthetic = searchParams.aesthetic || "";
   const pageSize = 24;
 
-  // 2. Build Query Filters
   const where: any = {};
   if (query) {
     where.title = { contains: query, mode: 'insensitive' };
@@ -27,7 +24,6 @@ export default async function Dashboard({
     where.aesthetic = aesthetic;
   }
 
-  // 3. Fetch Data
   const totalCount = await db.product.count({ where });
   const products = await db.product.findMany({
     where,
@@ -38,7 +34,6 @@ export default async function Dashboard({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // 4. Client Action for Search (Embedded helper)
   async function searchAction(formData: FormData) {
     "use server";
     const q = formData.get("q");
@@ -48,7 +43,7 @@ export default async function Dashboard({
 
   return (
     <div className="space-y-8">
-      {/* HEADER & STATS */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-800 pb-8">
         <div>
             <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
@@ -68,14 +63,14 @@ export default async function Dashboard({
         </div>
       </div>
 
-      {/* SEARCH & FILTER BAR */}
+      {/* SEARCH BAR */}
       <form action={searchAction} className="bg-gray-900/50 p-4 rounded-2xl border border-gray-800 flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
             <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
             <input 
                 name="q" 
                 defaultValue={query}
-                placeholder="Search products (e.g. 'Hello Kitty', 'Goth', 'Hoodie')..." 
+                placeholder="Search products..." 
                 className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
             />
         </div>
@@ -99,60 +94,73 @@ export default async function Dashboard({
             </button>
             
             {(query || aesthetic) && (
-                <Link href="/dashboard" className="flex items-center justify-center bg-gray-800 text-gray-400 px-4 rounded-xl hover:bg-gray-700 hover:text-white transition" title="Clear Filters">
+                <Link href="/dashboard" className="flex items-center justify-center bg-gray-800 text-gray-400 px-4 rounded-xl hover:bg-gray-700 hover:text-white transition">
                     <X size={20} />
                 </Link>
             )}
         </div>
       </form>
 
-      {/* PRODUCTS GRID */}
+      {/* GRID */}
       {products.length === 0 ? (
         <div className="p-20 border border-dashed border-gray-800 rounded-xl text-center text-gray-500 bg-gray-900/20">
             <Search size={48} className="mx-auto mb-4 opacity-20" />
             <p className="text-xl font-medium">No products found.</p>
-            <p className="text-sm mt-2 opacity-60">Try adjusting your search or filters.</p>
-            {(query || aesthetic) && (
-                <Link href="/dashboard" className="inline-block mt-4 text-purple-400 hover:text-purple-300">
-                    Clear all filters
-                </Link>
-            )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
-            <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
-                <div className="h-64 relative overflow-hidden bg-black">
-                    <img 
-                        src={product.imageUrl} 
-                        alt={product.title} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition duration-500" 
-                        loading="lazy"
-                    />
-                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10">
-                        {product.aesthetic}
-                    </div>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                    <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 leading-tight" title={product.title}>
-                        {product.title}
-                    </h3>
-                    <div className="mt-auto flex justify-between items-end border-t border-gray-800 pt-4">
-                        <div>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Price</p>
-                            <p className="text-xl font-mono text-white">${product.price}</p>
+            {products.map((product) => {
+                // Construct the "Reverse Search" URL
+                const aliExpressSearchUrl = `https://www.google.com/search?tbm=isch&q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+                
+                return (
+                <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
+                    <div className="h-64 relative overflow-hidden bg-black">
+                        <img 
+                            src={product.imageUrl} 
+                            alt={product.title} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-500" 
+                            loading="lazy"
+                        />
+                        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10">
+                            {product.aesthetic}
                         </div>
-                        <a 
-                            href={product.sourceUrl} 
-                            target="_blank" 
-                            className="bg-white text-black p-2 rounded-full hover:bg-purple-400 hover:scale-110 transition shadow-lg shadow-purple-900/20"
-                        >
-                            <ArrowUpRight size={18} />
-                        </a>
+                    </div>
+                    <div className="p-5 flex flex-col flex-1">
+                        <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 leading-tight" title={product.title}>
+                            {product.title}
+                        </h3>
+                        
+                        <div className="mt-auto pt-4 border-t border-gray-800">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Market Price</span>
+                                <span className="text-xl font-mono text-white">${product.price}</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <a 
+                                    href={aliExpressSearchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-blue-600 text-white py-2 rounded-lg text-xs font-bold transition group/btn"
+                                    title="Find Supplier on AliExpress"
+                                >
+                                    <Globe size={14} className="text-blue-400 group-hover/btn:text-white" /> Find Supplier
+                                </a>
+                                <a 
+                                    href={product.sourceUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 bg-white hover:bg-gray-200 text-black py-2 rounded-lg text-xs font-bold transition"
+                                    title="View Original Store"
+                                >
+                                    <ShoppingBag size={14} /> View Store
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            ))}
+            )})}
         </div>
       )}
 
