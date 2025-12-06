@@ -13,14 +13,13 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Lens Multisearch Hunter...");
+  console.log("🕵️ Starting Lens Multisearch Hunter (Pro Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products without a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -40,14 +39,12 @@ async function main() {
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--window-size=1366,768',
+        '--window-size=1920,1080',
         `--proxy-server=http://${process.env.PROXY_SERVER}`
     ]
   });
 
   const page = await browser.newPage();
-  
-  // Increase timeout to handle AliExpress redirects
   page.setDefaultNavigationTimeout(60000); 
   
   await page.authenticate({
@@ -55,31 +52,33 @@ async function main() {
     password: process.env.PROXY_PASSWORD
   });
 
-  await page.setViewport({ width: 1366, height: 768 });
+  await page.setViewport({ width: 1920, height: 1080 });
+
+  // 1. SET COOKIES TO FORCE ENGLISH & USD
+  // This prevents 'fr.aliexpress' redirection and currency formatting issues
+  await page.setCookie({
+      name: 'aep_usuc_f',
+      value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
+      domain: '.aliexpress.com'
+  });
 
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
-
-        // 1. CONSTRUCT THE MAGIC LENS URL
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
-        console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // 2. Handle Google Consent
+        // Handle Google Consent
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree')]");
-            if (consentButton.length > 0) {
-                await consentButton[0].click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-            }
+            if (consentButton.length > 0) await consentButton[0].click();
         } catch (err) {}
 
-        await randomSleep(3000, 5000);
+        await randomSleep(2000, 4000);
 
-        // 3. EXTRACT FIRST RESULT
-        const foundLink = await page.evaluate(() => {
+        // Extract Link
+        let foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
             const productLinks = anchors
                 .map(a => a.href)
@@ -88,92 +87,72 @@ async function main() {
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress link found in Lens results.");
-            await prisma.product.update({
-                where: { id: product.id },
-                data: { lastSourced: new Date() }
-            });
+            console.log("   ❌ No AliExpress link found.");
+            await prisma.product.update({ where: { id: product.id }, data: { lastSourced: new Date() }});
             continue;
         }
 
-        console.log(`   🔗 Found: ${foundLink}`);
+        // 2. NORMALIZE URL (Force Global English Site)
+        // Convert 'fr.aliexpress.com' -> 'www.aliexpress.com'
+        foundLink = foundLink.replace(/\/\/[a-z]{2}\.aliexpress\.com/, '//www.aliexpress.com');
+        console.log(`   🔗 Visiting: ${foundLink}`);
 
-        // 4. VISIT ALIEXPRESS (Improved Loading Strategy)
-        // 'networkidle2' waits until the price API calls are finished
         await page.goto(foundLink, { waitUntil: 'networkidle2', timeout: 60000 });
         
-        // Scroll down to trigger lazy loading of "Choice" prices
-        await page.evaluate(() => { window.scrollBy(0, 600); });
+        // 3. DEBUG: Check if we are blocked
+        const pageTitle = await page.title();
+        console.log(`   📄 Page Title: "${pageTitle}"`);
         
-        // Attempt to close "Welcome" popups which might block reading
-        try {
-            const closeBtn = await page.$x("//div[contains(@class, 'pop-close-btn') or contains(@class, 'close-layer')]");
-            if (closeBtn.length > 0) await closeBtn[0].click();
-        } catch (e) {}
+        if (pageTitle.includes("Login") || pageTitle.includes("Security")) {
+            console.log("   🚫 Blocked by Login Wall. Skipping...");
+            continue;
+        }
 
-        await randomSleep(2000, 4000); 
+        await randomSleep(3000, 5000); 
 
-        // 5. EXTRACT PRICE (Advanced Method)
+        // 4. EXTRACT PRICE (The "Pro" Way: window.runParams)
         const priceData = await page.evaluate(() => {
-            // STRATEGY 1: Check JSON-LD (Structured Data)
-            // This is how Google sees the price. It is extremely reliable.
             try {
-                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (const script of scripts) {
-                    const data = JSON.parse(script.innerText);
-                    // Look for Product schema
-                    if (data['@type'] === 'Product' || data['@context']?.includes('schema.org')) {
-                        const offers = data.offers;
-                        // Offers can be an array or object
-                        if (Array.isArray(offers)) {
-                            return { val: offers[0].price, src: 'json-ld' };
-                        } else if (offers && offers.price) {
-                            return { val: offers.price, src: 'json-ld' };
-                        }
+                // METHOD A: Check Global Javascript Variable (Most accurate)
+                // AliExpress stores data in 'runParams'
+                if (window.runParams && window.runParams.data) {
+                    const data = window.runParams.data;
+                    // Path 1: Price Module
+                    if (data.priceModule && data.priceModule.minActivityAmount) {
+                        return data.priceModule.minActivityAmount.value;
+                    }
+                    if (data.priceModule && data.priceModule.maxAmount) {
+                        return data.priceModule.maxAmount.value;
+                    }
+                    // Path 2: Product Info Component
+                    if (data.productInfoComponent && data.productInfoComponent.price) {
+                         return data.productInfoComponent.price.minPrice;
                     }
                 }
-            } catch (e) { console.log("JSON-LD failed", e); }
 
-            // STRATEGY 2: Meta Tags (Open Graph)
-            try {
-                const metaPrice = document.querySelector('meta[property="og:price:amount"]');
-                if (metaPrice) return { val: metaPrice.getAttribute('content'), src: 'meta' };
-            } catch(e) {}
-
-            // STRATEGY 3: Visual Selectors (Wildcards)
-            // We search for classes *containing* 'price--current' instead of exact matches
-            const selectors = [
-                '[class*="price--current"]',  // Catches .price--current--XyZ
-                '.product-price-value',
-                '.uniform-banner-box-price', // Common on "Choice" items
-                '[itemprop="price"]',
-                '.sku-price' // Mobile view specific
-            ];
-            
-            for (const s of selectors) {
-                const el = document.querySelector(s);
-                if (el && el.innerText && /\d/.test(el.innerText)) {
-                    return { val: el.innerText, src: 'css' };
+                // METHOD B: JSON-LD
+                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+                for (const script of scripts) {
+                    const json = JSON.parse(script.innerText);
+                    if (json['@type'] === 'Product' && json.offers) {
+                        const price = Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
+                        if(price) return price;
+                    }
                 }
-            }
-            
+
+                // METHOD C: Regex Search on Body (Last Resort)
+                // Looks for "US $12.34" pattern
+                const bodyText = document.body.innerText;
+                const match = bodyText.match(/US\s?\$(\d+(\.\d+)?)/);
+                if (match && match[1]) return match[1];
+
+            } catch (e) { return null; }
             return null;
         });
 
-        if (priceData && priceData.val) {
-            // Clean the price string
-            let rawString = priceData.val.toString();
-            
-            // Handle European formatting (e.g. "3,65" -> "3.65")
-            // If comma exists but no dot, assume comma is decimal separator
-            if (rawString.includes(',') && !rawString.includes('.')) {
-                rawString = rawString.replace(',', '.');
-            }
-
-            // Remove currency symbols and other text
-            const cleanPrice = parseFloat(rawString.replace(/[^0-9.]/g, ''));
-
-            console.log(`   💰 Price: $${cleanPrice} (via ${priceData.src})`);
+        if (priceData) {
+            const cleanPrice = parseFloat(priceData.toString().replace(/[^0-9.]/g, ''));
+            console.log(`   💰 Price Found: $${cleanPrice}`);
 
             await prisma.product.update({
                 where: { id: product.id },
@@ -185,11 +164,8 @@ async function main() {
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Link valid, but price hidden (Anti-bot active or OOS).");
-            await prisma.product.update({
-                where: { id: product.id },
-                data: { supplierUrl: foundLink, lastSourced: new Date() }
-            });
+            console.log("   ⚠️ Price hidden/unavailable.");
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
     } catch (e) {
