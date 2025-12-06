@@ -1,79 +1,139 @@
-import { db } from "@/lib/db";
-import { ArrowUpRight, Database, RefreshCw } from "lucide-react";
+"use client";
+import { useState } from "react";
+import { Wand2, Image as ImageIcon, Loader2, Copy } from "lucide-react";
 
-export const dynamic = 'force-dynamic';
+export default function AITools() {
+  const [productName, setProductName] = useState("");
+  const [descResult, setDescResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export default async function Dashboard() {
-  // 1. Get total count of products in the DB
-  const totalCount = await db.product.count();
-  
-  // 2. Get the actual products (up to 100)
-  const products = await db.product.findMany({
-    take: 100,
-    orderBy: { createdAt: 'desc' }
-  });
+  const [imageUrl, setImageUrl] = useState("");
+  const [bgResult, setBgResult] = useState("");
+  const [bgLoading, setBgLoading] = useState(false);
+
+  const generateDescription = async () => {
+    if(!productName) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        body: JSON.stringify({ productName }),
+      });
+      const data = await res.json();
+      setDescResult(data);
+    } catch (e) {
+      alert("Error generating description");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeBackground = async () => {
+    if(!imageUrl) return;
+    setBgLoading(true);
+    try {
+      const res = await fetch("/api/ai/remove-bg", {
+        method: "POST",
+        body: JSON.stringify({ imageUrl }),
+      });
+      const data = await res.json();
+      if(data.output) setBgResult(data.output);
+      else alert("Failed to process image");
+    } catch (e) {
+      alert("Error processing image");
+    } finally {
+      setBgLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6">
         <div>
-            <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
-            <p className="text-gray-400 mt-2">Top high-margin items from 50+ stores.</p>
+            <h2 className="text-3xl font-bold">AI Studio ✨</h2>
+            <p className="text-gray-400 mt-2">Generate content and edit photos instantly.</p>
         </div>
-        
-        {/* DEBUG COUNTER */}
-        <div className="bg-gray-900 border border-gray-700 p-4 rounded-xl flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
-                <Database size={24} />
-            </div>
-            <div>
-                <p className="text-xs text-gray-400 uppercase font-bold">In Database</p>
-                <p className="text-xl font-mono text-white font-bold">
-                    {products.length} <span className="text-gray-500 text-sm">/ {totalCount} total</span>
-                </p>
-            </div>
-        </div>
-      </div>
 
-      {products.length === 0 ? (
-        <div className="p-10 border border-dashed border-gray-800 rounded-xl text-center text-gray-500">
-            <p>No products found yet.</p>
-            <p className="text-sm mt-2">Go to GitHub Actions and run "Daily Product Scraper" manually.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => (
-            <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300">
-                <div className="h-64 relative overflow-hidden bg-black">
-                    <img 
-                        src={product.imageUrl} 
-                        alt={product.title} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition duration-500" 
-                    />
-                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10">
-                        {product.aesthetic}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Description Gen */}
+            <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-32 bg-purple-600/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-purple-500/10 rounded-lg text-purple-400">
+                        <Wand2 size={24} />
                     </div>
+                    <h3 className="font-bold text-xl">Description Writer</h3>
                 </div>
-                <div className="p-5">
-                    <h3 className="font-bold text-lg truncate mb-1" title={product.title}>{product.title}</h3>
-                    <div className="flex justify-between items-end mt-4">
-                        <div>
-                            <p className="text-xs text-gray-500 uppercase tracking-wide">Market Price</p>
-                            <p className="text-2xl font-mono text-white">${product.price}</p>
-                        </div>
-                        <a 
-                            href={product.sourceUrl} 
-                            target="_blank" 
-                            className="bg-white text-black p-2 rounded-full hover:bg-purple-400 transition"
-                        >
-                            <ArrowUpRight size={20} />
-                        </a>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-sm text-gray-400 mb-2 block">Product Name</label>
+                        <input 
+                            value={productName}
+                            onChange={(e) => setProductName(e.target.value)}
+                            placeholder="e.g. Vintage Nike Sweatshirt"
+                            className="w-full bg-black border border-gray-800 p-4 rounded-xl text-white focus:ring-2 ring-purple-500 outline-none transition"
+                        />
                     </div>
+                    <button 
+                        onClick={generateDescription}
+                        disabled={loading}
+                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : "Generate Magic"}
+                    </button>
                 </div>
+
+                {descResult && (
+                <div className="mt-6 p-4 bg-black/50 border border-gray-800 rounded-xl">
+                    <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">{descResult}</p>
+                    <button 
+                        onClick={() => navigator.clipboard.writeText(descResult)}
+                        className="mt-3 flex items-center gap-2 text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider"
+                    >
+                        <Copy size={12} /> Copy Text
+                    </button>
+                </div>
+                )}
             </div>
-            ))}
+
+            {/* BG Remover */}
+            <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-32 bg-pink-600/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-pink-500/10 rounded-lg text-pink-400">
+                        <ImageIcon size={24} />
+                    </div>
+                    <h3 className="font-bold text-xl">Background Remover</h3>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-sm text-gray-400 mb-2 block">Image URL</label>
+                        <input 
+                            value={imageUrl}
+                            onChange={(e) => setImageUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="w-full bg-black border border-gray-800 p-4 rounded-xl text-white focus:ring-2 ring-pink-500 outline-none transition"
+                        />
+                    </div>
+                    <button 
+                        onClick={removeBackground}
+                        disabled={bgLoading}
+                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
+                    >
+                        {bgLoading ? <Loader2 className="animate-spin" /> : "Remove Background"}
+                    </button>
+                </div>
+
+                {bgResult && (
+                <div className="mt-6 border border-gray-800 rounded-xl overflow-hidden">
+                    <img src={bgResult} alt="Result" className="w-full" />
+                </div>
+                )}
+            </div>
         </div>
-      )}
     </div>
   );
 }
