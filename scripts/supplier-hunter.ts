@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🔍 Starting Google Cache Protocol (No-Click Extraction)...");
+  console.log("🦖 Starting Omnivore Hunter (Source Scan + Multi-Engine)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -58,102 +58,82 @@ async function main() {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // --- STEP 1: GOOGLE LENS (To find the ID) ---
+        // --- STEP 1: GOOGLE LENS (ID EXTRACTION) ---
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
         // Handle Consent
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser')]");
+            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser') or contains(., 'Alle ablehnen')]");
             if (consentButton.length > 0) await consentButton[0].click();
         } catch (err) {}
 
-        await randomSleep(2000, 3000);
+        await randomSleep(2000, 4000);
 
-        // Find AliExpress Link to get the ID
-        let foundLink = await page.evaluate(() => {
+        // STRATEGY: SCAN SOURCE CODE FOR ID
+        // AliExpress IDs are 15-16 digits and usually start with 1005
+        let itemId = await page.evaluate(() => {
+            // 1. Try Links
             const anchors = Array.from(document.querySelectorAll('a'));
-            const productLinks = anchors
-                .map(a => a.href)
-                .filter(href => href && href.includes('aliexpress.com/item'));
-            return productLinks.length > 0 ? productLinks[0] : null;
+            const link = anchors.find(a => a.href.includes('aliexpress.com/item'));
+            if (link) {
+                const match = link.href.match(/\/item\/(\d+)\.html/);
+                if (match) return match[1];
+            }
+
+            // 2. Try Source Code Regex (The "Nuclear" Option)
+            // This finds the ID even if the link is hidden in JSON or redirects
+            const bodyText = document.body.innerHTML;
+            const idMatch = bodyText.match(/1005\d{12}/); // Matches 1005 + 12 digits
+            if (idMatch) return idMatch[0];
+
+            return null;
         });
 
-        if (!foundLink) {
-            console.log("   ❌ No AliExpress link found via Lens.");
+        if (!itemId) {
+            console.log("   ❌ No AliExpress ID found in source code.");
             await prisma.product.update({ where: { id: product.id }, data: { lastSourced: new Date() }});
             continue;
         }
 
-        // Extract ID (e.g., 10050012345678)
-        const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
-        if (!idMatch) {
-            console.log("   ⚠️ Could not parse Item ID from link.");
-            continue;
-        }
-        const itemId = idMatch[1];
-        console.log(`   🆔 Item ID: ${itemId}`);
+        console.log(`   🆔 Found Item ID: ${itemId}`);
+        const cleanLink = `https://www.aliexpress.com/item/${itemId}.html`;
 
-        // --- STEP 2: GOOGLE SEARCH THE ID ---
-        // We search the ID directly. The price is often in the meta description.
-        console.log(`   🌎 Searching Google for ID: ${itemId}...`);
+        // --- STEP 2: SEARCH ENGINE PRICE CHECK ---
+        let foundPrice = 0;
+
+        // ATTEMPT A: GOOGLE (Forced US English)
+        console.log("   🌎 Checking Google (US Mode)...");
+        // &gl=us (Geo Location US) &hl=en (Language English) -> Critical for parsing
+        await page.goto(`https://www.google.com/search?q=${itemId}+site:aliexpress.com&gl=us&hl=en`, { waitUntil: 'domcontentloaded' });
+        await randomSleep(2000, 3000);
         
-        // Note: We use 'site:aliexpress.com' to ensure we get the official listing
-        await page.goto(`https://www.google.com/search?q=${itemId}+site:aliexpress.com`, { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 4000);
+        foundPrice = await extractPriceFromPage(page);
 
-        // --- STEP 3: READ THE SEARCH RESULT SNIPPET ---
-        const priceFound = await page.evaluate(() => {
-            // Get all text from the search results
-            // Google snippets usually put price in a span or div
-            const bodyText = document.body.innerText;
-            
-            // Regex Strategies based on your screenshot
-            const strategies = [
-                /US\s?\$(\d+(\.\d+)?)/,      // Matches: US$38.55 or US $38.55
-                /\$(\d+(\.\d+)?)/,           // Matches: $38.55
-                /(\d+[\.,]\d+)\s?€/,         // Matches: 35,50 € (European)
-                /€\s?(\d+[\.,]\d+)/          // Matches: €35.50
-            ];
+        // ATTEMPT B: BING (Fallback if Google fails)
+        if (foundPrice === 0) {
+            console.log("   ⚠️ Google failed. Checking Bing...");
+            await page.goto(`https://www.bing.com/search?q=site%3Aaliexpress.com+${itemId}`, { waitUntil: 'domcontentloaded' });
+            await randomSleep(2000, 3000);
+            foundPrice = await extractPriceFromPage(page);
+        }
 
-            for (const regex of strategies) {
-                const match = bodyText.match(regex);
-                if (match) {
-                    return match[1] || match[0];
+        // --- STEP 3: SAVE RESULTS ---
+        if (foundPrice > 0) {
+            console.log(`   💰 Price Found: $${foundPrice}`);
+            await prisma.product.update({
+                where: { id: product.id },
+                data: {
+                    supplierUrl: cleanLink,
+                    supplierPrice: foundPrice,
+                    lastSourced: new Date()
                 }
-            }
-            return null;
-        });
-
-        if (priceFound) {
-            // Clean the number
-            let rawString = priceFound.toString();
-            // Fix comma decimals if present (European format)
-            if (rawString.includes(',') && !rawString.includes('.')) {
-                rawString = rawString.replace(',', '.');
-            }
-            // Remove non-numeric chars except dot
-            const cleanPrice = parseFloat(rawString.replace(/[^0-9.]/g, ''));
-
-            if (cleanPrice > 0.1) {
-                console.log(`   💰 Price Found on Google: $${cleanPrice}`);
-                
-                await prisma.product.update({
-                    where: { id: product.id },
-                    data: {
-                        supplierUrl: foundLink, // We keep the original link we found in step 1
-                        supplierPrice: cleanPrice,
-                        lastSourced: new Date()
-                    }
-                });
-                console.log("   ✅ Saved.");
-            } else {
-                 console.log("   ⚠️ Price detected was invalid/zero.");
-            }
+            });
+            console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not visible in search results.");
-            // Still save the link so user can check manually
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
+            console.log("   ⚠️ Price not found in search snippets.");
+            // Save link anyway
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: cleanLink, lastSourced: new Date() }});
         }
 
     } catch (e) {
@@ -164,6 +144,36 @@ async function main() {
   await browser.close();
   await prisma.$disconnect();
   console.log("\n🏁 Hunt Complete.");
+}
+
+// Helper: Scans page text for Price patterns
+async function extractPriceFromPage(page) {
+    return await page.evaluate(() => {
+        const text = document.body.innerText;
+        // Strategies:
+        // 1. "US $12.34"
+        // 2. "$12.34"
+        // 3. "EUR 12,34"
+        const patterns = [
+            /US\s?\$(\d+(\.\d+)?)/,
+            /\$(\d+(\.\d+)?)/,
+            /€\s?(\d+([.,]\d+)?)/,
+            /(\d+([.,]\d+)?)\s?€/
+        ];
+
+        for (const p of patterns) {
+            const match = text.match(p);
+            if (match) {
+                // Return the raw number string
+                let raw = match[1] || match[0];
+                // Fix European commas
+                if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
+                const val = parseFloat(raw.replace(/[^0-9.]/g, ''));
+                if (val > 0.1) return val;
+            }
+        }
+        return 0;
+    });
 }
 
 main();
