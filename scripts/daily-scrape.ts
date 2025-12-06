@@ -67,22 +67,16 @@ const TARGET_STORES = [
 async function main() {
   console.log("🔥 Starting 'Best-Sellers' Spy Protocol...");
   
-  // 1. DELETE COMMAND REMOVED. 
-  // We no longer wipe the database. We append new items.
-
   let newProducts = 0;
   let skippedProducts = 0;
 
-  // Shuffle stores so we don't always scrape the same ones if time runs out
   const shuffledStores = TARGET_STORES.sort(() => 0.5 - Math.random());
 
   for (const storeUrl of shuffledStores) {
     try {
-        // 2. TIMEOUT CONTROLLER (Prevents hanging forever on one store)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); 
 
-        // 3. FETCH BEST SELLERS HTML
         const htmlRes = await fetch(`${storeUrl}/collections/all?sort_by=best-selling`, {
             signal: controller.signal,
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }
@@ -95,7 +89,6 @@ async function main() {
         const html = await htmlRes.text();
         const $ = cheerio.load(html);
 
-        // 4. FIND HANDLES
         const productHandles = new Set<string>();
         $('a[href*="/products/"]').each((_, element) => {
             const href = $(element).attr('href');
@@ -105,25 +98,24 @@ async function main() {
             }
         });
 
-        const topHandles = Array.from(productHandles).slice(0, 3); // Top 3 per store
+        const topHandles = Array.from(productHandles).slice(0, 3);
 
         if(topHandles.length > 0) process.stdout.write(`\n${storeUrl}: `);
 
         for (const handle of topHandles) {
             const productUrl = `${storeUrl}/products/${handle}`;
             
-            // 5. CHECK IF EXISTS (Deduplication)
-            const exists = await prisma.product.findUnique({
+            // --- FIX IS HERE: Changed findUnique to findFirst ---
+            const exists = await prisma.product.findFirst({
                 where: { sourceUrl: productUrl }
             });
 
             if (exists) {
-                process.stdout.write("-"); // Skip
+                process.stdout.write("-"); 
                 skippedProducts++;
                 continue;
             }
 
-            // 6. FETCH DETAILS
             const jsonUrl = `${storeUrl}/products/${handle}.json`;
             const productRes = await fetch(jsonUrl);
             if (!productRes.ok) continue;
@@ -133,7 +125,6 @@ async function main() {
 
             if (!item || !item.images || item.images.length === 0) continue;
 
-            // 7. SAVE TO DB
             await prisma.product.create({
                 data: {
                     title: item.title,
@@ -143,11 +134,11 @@ async function main() {
                     aesthetic: "Trending 🔥"
                 }
             });
-            process.stdout.write("+"); // Add
+            process.stdout.write("+"); 
             newProducts++;
         }
     } catch (e) {
-        // Ignore errors for individual stores
+        // Ignore errors
     }
   }
 
