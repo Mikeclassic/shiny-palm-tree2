@@ -13,9 +13,15 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting DuckDuckGo Supplier Hunter...");
+  console.log("🕵️ Starting Proxy-Enabled Supplier Hunter...");
 
-  // 1. Find products needing a supplier
+  // Validate Proxy Config
+  if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
+      console.error("❌ Error: Missing PROXY_SERVER, PROXY_USERNAME, or PROXY_PASSWORD secrets.");
+      process.exit(1);
+  }
+
+  // Find products without a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -27,7 +33,7 @@ async function main() {
     return;
   }
 
-  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
+  console.log(`🎯 Targeting ${productsToHunt.length} products using Proxy...`);
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -35,11 +41,19 @@ async function main() {
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--window-size=1366,768'
+        '--window-size=1366,768',
+        `--proxy-server=${process.env.PROXY_SERVER}` // ROUTE THROUGH PROXY
     ]
   });
 
   const page = await browser.newPage();
+  
+  // AUTHENTICATE PROXY
+  await page.authenticate({
+    username: process.env.PROXY_USERNAME,
+    password: process.env.PROXY_PASSWORD
+  });
+
   await page.setViewport({ width: 1366, height: 768 });
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
@@ -47,30 +61,28 @@ async function main() {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // --- THE FIX: USE DUCKDUCKGO HTML VERSION ---
-        // Google blocks GitHub Actions IPs. DDG is much friendlier.
-        // We use /html/ mode for faster, raw results.
-        const searchUrl = `https://duckduckgo.com/html/?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+        // 1. Google Search (Restored Google because Proxy handles it now)
+        // We use "site:aliexpress.com" to ensure we only get Ali links
+        const searchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 3000);
+        await randomSleep(2000, 4000);
 
-        // 2. Extract Link from DDG Results
+        // 2. GREEDY LINK EXTRACTION
         const foundLink = await page.evaluate(() => {
-            // Find all anchor tags
             const anchors = Array.from(document.querySelectorAll('a'));
             
-            // Look for AliExpress Item links
             const productLinks = anchors
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
 
+            // Google puts the best result first
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
-            console.log("   ❌ No result found on DuckDuckGo.");
-            // Mark as checked to prevent infinite loops on failed items
+            console.log("   ❌ No AliExpress link found (Check keywords or proxy health).");
+            // Mark as checked
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -83,7 +95,6 @@ async function main() {
         // 3. Visit AliExpress
         await page.goto(foundLink, { waitUntil: 'domcontentloaded' });
         
-        // Anti-bot scroll
         await page.evaluate(() => { window.scrollBy(0, 500); });
         await randomSleep(3000, 5000); 
 
@@ -96,12 +107,13 @@ async function main() {
                 '.uniform-banner-box-price',
                 '.product-price-current',
                 '[itemprop="price"]',
-                'div[class*="price"]' // fallback broad selector
+                // Fallback for different regions
+                'span[class*="price"]'
             ];
             
             for (const s of selectors) {
                 const el = document.querySelector(s);
-                if (el && el.innerText && el.innerText.includes('$')) return el.innerText;
+                if (el && el.innerText && /\d/.test(el.innerText)) return el.innerText;
             }
             return null;
         });
@@ -120,7 +132,7 @@ async function main() {
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Link valid, but price hidden/dynamic.");
+            console.log("   ⚠️ Link valid, but price hidden.");
             await prisma.product.update({
                 where: { id: product.id },
                 data: { supplierUrl: foundLink, lastSourced: new Date() }
