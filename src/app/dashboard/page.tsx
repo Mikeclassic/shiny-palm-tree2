@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, ScanSearch, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, ScanSearch, ShoppingBag, Globe } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -110,10 +110,11 @@ export default async function Dashboard({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-                // --- GOOGLE IMAGES + SITE FILTER ---
-                // tbm=isch -> Image Search Mode
-                // q=site:aliexpress.com -> Restrict to AliExpress
-                const googleAliUrl = `https://www.google.com/search?tbm=isch&q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
+                // --- THE HYBRID SOLUTION ---
+                // 1. searchbyimage: Triggers Google's Image Search Engine
+                // 2. image_url: Passes the specific photo
+                // 3. q=site:aliexpress.com: Attempts to restrict results to AliExpress
+                const visualSearchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(product.imageUrl)}&q=site:aliexpress.com`;
                 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
@@ -141,11 +142,11 @@ export default async function Dashboard({
 
                             <div className="grid grid-cols-2 gap-2">
                                 <a 
-                                    href={googleAliUrl}
+                                    href={visualSearchUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2 bg-[#FF4747] hover:bg-[#d63b3b] text-white py-2 rounded-lg text-xs font-bold transition group/btn"
-                                    title="Search AliExpress via Google Images"
+                                    title="Visual Search on AliExpress"
                                 >
                                     <ScanSearch size={14} className="text-white" /> Find Supplier
                                 </a>
