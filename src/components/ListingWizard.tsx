@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
 
 interface ListingWizardProps {
   product: any;
@@ -9,7 +9,8 @@ interface ListingWizardProps {
 }
 
 export default function ListingWizard({ product, onClose }: ListingWizardProps) {
-  const [step, setStep] = useState<"options" | "result">("options");
+  // If we already have a saved description, start at the "result" step
+  const [step, setStep] = useState<"options" | "result">(product.generatedDesc ? "result" : "options");
 
   // User Preferences
   const [condition, setCondition] = useState(product.condition || "");
@@ -75,7 +76,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
       
       const data = await res.json();
 
-      // IF ERROR: Throw it so we catch it below
       if (!res.ok || data.error) {
         throw new Error(data.error || `Server Error ${res.status}`);
       }
@@ -85,7 +85,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
       saveToDb(data);
 
     } catch (e: any) {
-      // THIS IS THE FIX: Shows the real error message
       alert(`Generation Failed: ${e.message}`);
     } finally {
       setLoading(false);
@@ -93,8 +92,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 border border-gray-700 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950">
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Sparkles className="text-purple-500 fill-purple-500" size={20} /> 
@@ -178,9 +177,18 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
              <div className="space-y-4 h-full flex flex-col animate-in fade-in slide-in-from-right-4">
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-400">Review & Edit before copying.</p>
-                    <button onClick={() => setStep("options")} className="text-xs underline text-gray-500 hover:text-white">Back to options</button>
+                    <button onClick={() => setStep("options")} className="flex items-center gap-1 text-xs text-gray-500 hover:text-white transition">
+                        <RefreshCw size={12} /> Regenerate
+                    </button>
                 </div>
-                <textarea value={generatedDesc} onChange={(e) => setGeneratedDesc(e.target.value)} className="w-full flex-1 bg-black border border-gray-700 rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none leading-relaxed font-mono" />
+                
+                {/* --- FIX: INCREASED HEIGHT --- */}
+                <textarea 
+                    value={generatedDesc} 
+                    onChange={(e) => setGeneratedDesc(e.target.value)} 
+                    className="w-full h-96 bg-black border border-gray-700 rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none leading-relaxed font-mono" 
+                />
+                
                 <div className="flex gap-3 pt-2">
                     <button onClick={() => saveToDb(generatedDesc)} className="px-6 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition flex items-center gap-2">{saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Save</button>
                     <button onClick={() => { navigator.clipboard.writeText(generatedDesc); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="flex-1 bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2">{copied ? <CheckCircle2 size={18} className="text-green-600" /> : <Copy size={18} />} {copied ? "Copied!" : "Copy to Depop"}</button>
