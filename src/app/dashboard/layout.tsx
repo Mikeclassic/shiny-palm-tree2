@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { UserButton } from "@clerk/nextjs";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, DollarSign } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-black text-white font-sans">
-      {/* Sidebar */}
       <aside className="w-64 bg-gray-950 border-r border-gray-900 hidden md:flex flex-col p-6 fixed h-full z-10">
         <div className="flex items-center gap-2 mb-10">
             <Zap className="text-purple-500 fill-purple-500" />
@@ -15,6 +14,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="space-y-2 flex-1">
           <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
             <LayoutDashboard size={20} /> <span className="font-medium">Dashboard</span>
+          </Link>
+          <Link href="/dashboard/sourcing" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
+            <DollarSign size={20} /> <span className="font-medium">Sourcing</span>
           </Link>
           <Link href="/dashboard/saved" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
             <Bookmark size={20} /> <span className="font-medium">Saved Listings</span>
@@ -35,9 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 md:ml-64 p-8">
-        {/* Mobile Header */}
         <div className="md:hidden flex justify-between items-center mb-8">
             <h1 className="text-xl font-bold text-purple-500">GlowSeller</h1>
             <UserButton afterSignOutUrl="/" />
