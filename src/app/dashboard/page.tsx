@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, ScanSearch, ShoppingBag, Globe } from "lucide-react";
+import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, ScanSearch, ShoppingBag, Globe, Zap } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -110,8 +110,7 @@ export default async function Dashboard({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-                // --- FIXED LINK FOR MOBILE ---
-                // Using the official Lens upload endpoint works on Android/iOS
+                // Official Lens Upload URL (Works on Mobile & Desktop)
                 const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
                 
                 return (
@@ -143,10 +142,10 @@ export default async function Dashboard({
                                     href={lensUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white py-2 rounded-lg text-xs font-bold transition group/btn"
-                                    title="Visual Search with Google Lens"
+                                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white py-2 rounded-lg text-xs font-bold transition group/btn shadow-lg shadow-purple-900/20"
+                                    title="Automatically find factory source"
                                 >
-                                    <ScanSearch size={14} className="text-white" /> Lens Search
+                                    <Zap size={14} className="text-yellow-300 fill-yellow-300" /> Auto-Source
                                 </a>
                                 <a 
                                     href={product.sourceUrl} 
@@ -155,7 +154,7 @@ export default async function Dashboard({
                                     className="flex items-center justify-center gap-2 bg-white hover:bg-gray-200 text-black py-2 rounded-lg text-xs font-bold transition"
                                     title="View Original Store"
                                 >
-                                    <ShoppingBag size={14} /> View Store
+                                    <ShoppingBag size={14} /> Store
                                 </a>
                             </div>
                         </div>
