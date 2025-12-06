@@ -3,23 +3,22 @@ import { PrismaClient } from '@prisma/client';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-// Enable Stealth Mode (Hides "Navigator.webdriver" and other bot signals)
 puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-// Helper: Sleep for a random amount of time (Human behavior)
-const randomSleep = (min = 1000, max = 3000) => {
+const randomSleep = (min = 2000, max = 5000) => {
   const ms = Math.floor(Math.random() * (max - min + 1) + min);
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 async function main() {
-  console.log("🕵️ Starting Stealth Supplier Hunter...");
+  console.log("🕵️ Starting Greedy Supplier Hunter...");
 
+  // Find products without a supplier URL
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
-    take: 3, // Low batch size to stay under radar
+    take: 3, 
     orderBy: { createdAt: 'desc' }
   });
 
@@ -28,24 +27,22 @@ async function main() {
     return;
   }
 
-  console.log(`🎯 Targeting ${productsToHunt.length} products with Stealth Mode...`);
+  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
 
   const browser = await puppeteer.launch({
-    headless: "new", // "new" is faster, but false is safer for debugging if needed
+    headless: "new",
     args: [
         '--no-sandbox', 
         '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled', // Extra evasion
-        '--window-size=1920,1080'
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1366,768' // Standard Laptop size
     ]
   });
 
   const page = await browser.newPage();
+  await page.setViewport({ width: 1366, height: 768 });
   
-  // Set Viewport to standard Desktop
-  await page.setViewport({ width: 1920, height: 1080 });
-
-  // Use a high-quality recent User Agent
+  // Use a very standard User Agent
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
   for (const product of productsToHunt) {
@@ -56,33 +53,51 @@ async function main() {
         const searchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
         
-        await randomSleep(2000, 4000); // Think like a human
+        await randomSleep(2000, 4000);
 
-        // 2. Extract Link
-        const firstLink = await page.$eval('a[href*="aliexpress.com/item"]', el => el.href).catch(() => null);
+        // 2. GREEDY LINK EXTRACTION (The Fix)
+        // Instead of looking for a specific selector, we grab ALL links and filter via Javascript
+        const foundLink = await page.evaluate(() => {
+            // Get every single <a> tag on the page
+            const anchors = Array.from(document.querySelectorAll('a'));
+            
+            // Filter for actual product pages
+            const productLinks = anchors
+                .map(a => a.href)
+                .filter(href => href && href.includes('aliexpress.com/item'));
 
-        if (!firstLink) {
-            console.log("   ❌ No AliExpress result found.");
+            // Return the first one found (Google ranks them by relevance)
+            return productLinks.length > 0 ? productLinks[0] : null;
+        });
+
+        if (!foundLink) {
+            console.log("   ❌ No AliExpress text link found (Might be blocked or no results).");
+            // Mark lastSourced so we don't try it again immediately
+            await prisma.product.update({
+                where: { id: product.id },
+                data: { lastSourced: new Date() }
+            });
             continue;
         }
 
-        console.log(`   🔗 Visiting: ${firstLink}`);
+        console.log(`   🔗 Found Link: ${foundLink}`);
 
         // 3. Visit AliExpress
-        await page.goto(firstLink, { waitUntil: 'domcontentloaded' });
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded' });
         
-        // Human Scroll: Scroll down a bit to trigger lazy loading
+        // Scroll to trigger lazy loading
         await page.evaluate(() => { window.scrollBy(0, 500); });
-        await randomSleep(3000, 5000); // Wait for price to load
+        await randomSleep(3000, 5000); 
 
-        // 4. Extract Price (Robust Selectors)
+        // 4. Extract Price
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
                 '.price--current--I3Gb7_V', 
                 '[class*="price--current"]',
                 '.uniform-banner-box-price',
-                '.product-price-current'
+                '.product-price-current',
+                '[itemprop="price"]'
             ];
             
             for (const s of selectors) {
@@ -99,18 +114,17 @@ async function main() {
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: firstLink,
+                    supplierUrl: foundLink,
                     supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not found (Anti-bot might be active or layout changed).");
-            // Save URL anyway
+            console.log("   ⚠️ Link valid, but price hidden.");
             await prisma.product.update({
                 where: { id: product.id },
-                data: { supplierUrl: firstLink, lastSourced: new Date() }
+                data: { supplierUrl: foundLink, lastSourced: new Date() }
             });
         }
 
@@ -121,7 +135,7 @@ async function main() {
 
   await browser.close();
   await prisma.$disconnect();
-  console.log("\n🏁 Stealth Hunt Complete.");
+  console.log("\n🏁 Hunt Complete.");
 }
 
 main();
