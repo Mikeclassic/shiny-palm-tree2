@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🌍 Starting Universal Hunter (Language Agnostic Protocol)...");
+  console.log("♻️ Restoring Original Link Hunter + Search Engine Pricing...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -31,7 +31,7 @@ async function main() {
     return;
   }
 
-  // 1. LAUNCH BROWSER
+  // 1. LAUNCH BROWSER (Standard Desktop Configuration)
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -45,118 +45,121 @@ async function main() {
 
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(60000); 
-
-  // 2. AUTHENTICATE PROXY
+  
+  // 2. AUTHENTICATE
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
   });
 
+  await page.setViewport({ width: 1920, height: 1080 });
+
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
-        let targetUrl = null;
 
         // ============================================================
-        // STEP 1: FIND ID (REGEX SCAN)
-        // We ignore visual links and scan source code for "100500..."
+        // STEP 1: RESTORED ORIGINAL LINK FINDING (Google Lens)
         // ============================================================
-        
+        // This logic is reverted to exactly what worked in your first log.
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
+        
+        console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Blindly click "Reject/Agree" buttons regardless of language
+        // Handle Consent (Expanded to include German/French just in case)
         try {
-            // "button" tag that is NOT an icon, usually the consent button
-            await page.evaluate(() => {
-                const buttons = Array.from(document.querySelectorAll('button'));
-                for (const b of buttons) {
-                    // Click the first button that looks like a privacy consent (usually at bottom)
-                    if (b.innerText.length > 3 && b.innerText.length < 30) {
-                        b.click();
-                        return;
-                    }
-                }
-            });
-        } catch(e) {}
-        
-        await randomSleep(2000, 4000);
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'refuser') or contains(., 'ablehnen') or contains(., 'I agree') or contains(., 'akzeptieren')]");
+            if (consentButton.length > 0) {
+                await consentButton[0].click();
+                await randomSleep(2000, 3000);
+            }
+        } catch (err) {}
 
-        // EXTRACTION: Scan full HTML for 16-digit ID
-        const itemId = await page.evaluate(() => {
-            const html = document.body.innerHTML;
-            // Regex for AliExpress Item ID (always starts with 1005, 16 digits total)
-            const match = html.match(/100500\d{10}/); 
-            return match ? match[0] : null;
+        await randomSleep(3000, 5000); // Wait for results to load
+
+        // The Original Logic to extract the link
+        const foundLink = await page.evaluate(() => {
+            const anchors = Array.from(document.querySelectorAll('a'));
+            
+            const productLinks = anchors
+                .map(a => a.href)
+                .filter(href => href && href.includes('aliexpress.com/item'));
+
+            // The first one is usually the most relevant visual match
+            return productLinks.length > 0 ? productLinks[0] : null;
         });
 
-        if (!itemId) {
-            console.log("   ❌ No AliExpress ID found in source code.");
+        if (!foundLink) {
+            console.log("   ❌ No AliExpress link found in Lens results.");
             await prisma.product.update({ where: { id: product.id }, data: { lastSourced: new Date() }});
             continue;
         }
 
-        console.log(`   🆔 Found ID: ${itemId}`);
-        targetUrl = `https://www.aliexpress.com/item/${itemId}.html`;
+        console.log(`   🔗 Found: ${foundLink}`);
 
         // ============================================================
-        // STEP 2: FACEBOOK BOT BYPASS
-        // We use Facebook UA to bypass the Login Wall
+        // STEP 2: SAFE PRICE EXTRACTION (Avoid AliExpress Block)
         // ============================================================
-        console.log("   👻 Impersonating Facebook Bot...");
-        await page.setUserAgent('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)');
+        // Instead of visiting AliExpress (which blocks your proxy), we extract the ID
+        // and check Google/Bing Cache, which is safer.
 
-        // Block images to load fast
-        await page.setRequestInterception(true);
-        const interceptor = (req) => {
-            if (['image', 'media', 'font', 'stylesheet'].includes(req.resourceType())) req.abort();
-            else req.continue();
-        };
-        page.on('request', interceptor);
+        const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
+        const itemId = idMatch ? idMatch[1] : null;
 
-        try {
-            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        } catch (e) {
-            console.log("   ⚠️ Navigation timeout (checking meta anyway...)");
+        if (!itemId) {
+            console.log("   ⚠️ Link found, but ID unparseable. Saving link only.");
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
+            continue;
         }
 
-        page.off('request', interceptor);
-        await page.setRequestInterception(false);
+        console.log(`   🆔 Item ID: ${itemId}`);
+        console.log("   🌎 Checking Search Engine Snippets for Price...");
+        
+        // We search Bing because it's very lenient with proxies and shows prices clearly
+        const bingUrl = `https://www.bing.com/search?q=site%3Aaliexpress.com+${itemId}`;
+        await page.goto(bingUrl, { waitUntil: 'domcontentloaded' });
+        await randomSleep(2000, 3000);
 
-        // ============================================================
-        // STEP 3: META TAG EXTRACTION
-        // We read "og:price:amount" which is always a number (e.g. "12.50")
-        // ============================================================
-        const metaData = await page.evaluate(() => {
-            const getMeta = (prop) => {
-                const el = document.querySelector(`meta[property="${prop}"]`);
-                return el ? el.getAttribute('content') : null;
-            };
-            return {
-                price: getMeta('og:price:amount'),
-                currency: getMeta('og:price:currency')
-            };
+        const foundPrice = await page.evaluate(() => {
+            const text = document.body.innerText;
+            // Regex to find prices in the search snippet
+            const patterns = [
+                /US\s?\$(\d+(\.\d+)?)/,       // US $10.00
+                /\$(\d+(\.\d+)?)/,            // $10.00
+                /€\s?(\d+([.,]\d+)?)/,        // € 10,00
+                /(\d+([.,]\d+)?)\s?€/         // 10,00 €
+            ];
+
+            for (const p of patterns) {
+                const match = text.match(p);
+                if (match) {
+                    let raw = match[1] || match[0];
+                    // Clean European formatting (10,00 -> 10.00)
+                    if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
+                    return parseFloat(raw.replace(/[^0-9.]/g, ''));
+                }
+            }
+            return 0;
         });
 
-        if (metaData.price) {
-            console.log(`   💰 Price Found: ${metaData.price} ${metaData.currency || ''}`);
-            
-            // Normalize: 12,50 -> 12.50
-            let raw = metaData.price.replace(',', '.');
-            let cleanPrice = parseFloat(raw);
-
+        if (foundPrice > 0) {
+            console.log(`   💰 Price Found: $${foundPrice}`);
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: targetUrl,
-                    supplierPrice: cleanPrice,
+                    supplierUrl: foundLink,
+                    supplierPrice: foundPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price hidden (Product might be OOS or blocked).");
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: targetUrl, lastSourced: new Date() }});
+            console.log("   ⚠️ Price not found in snippets. Saving URL only.");
+            await prisma.product.update({
+                where: { id: product.id },
+                data: { supplierUrl: foundLink, lastSourced: new Date() }
+            });
         }
 
     } catch (e) {
