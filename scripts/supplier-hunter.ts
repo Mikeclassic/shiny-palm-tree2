@@ -13,17 +13,16 @@ const randomSleep = (min = 1000, max = 3000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Human-Like Supplier Hunter (Google Mode)...");
+  console.log("🕵️ Starting High-Tolerance Supplier Hunter...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
-    take: 1, // Start with 1 to test stability
+    take: 1, 
     orderBy: { createdAt: 'desc' }
   });
 
@@ -47,7 +46,9 @@ async function main() {
 
   const page = await browser.newPage();
   
-  // Authenticate Proxy
+  // 1. INCREASE TIMEOUT TO 90 SECONDS (Fixes the crash)
+  page.setDefaultNavigationTimeout(90000); 
+  
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
@@ -59,31 +60,29 @@ async function main() {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // 1. Go to Google Homepage (Human behavior)
-        await page.goto('https://www.google.com', { waitUntil: 'networkidle2' });
-        await randomSleep(1000, 2000);
-
-        // 2. Handle "Before you continue" Cookie Consent
-        // Google often blocks access until you click "I agree" or "Reject all"
-        try {
-            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Accept all')]");
-            if (consentButton.length > 0) {
-                console.log("   🍪 Clicking Cookie Consent...");
-                await consentButton[0].click();
-                await page.waitForNavigation({ waitUntil: 'networkidle2' });
-            }
-        } catch (err) {
-            // Ignore if no cookie banner found
-        }
-
-        // 3. Type Search Query
-        await page.type('textarea[name="q"], input[name="q"]', `site:aliexpress.com ${product.title}`, { delay: 100 });
-        await randomSleep(500, 1000);
-        await page.keyboard.press('Enter');
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        // 2. Go to Google (Wait for DOM only, not full network idle)
+        await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded' });
         await randomSleep(2000, 4000);
 
-        // 4. Extract Links (Greedy)
+        // Handle Cookies (Quick check)
+        try {
+            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree')]");
+            if (consentButton.length > 0) {
+                console.log("   🍪 Handling Cookies...");
+                await consentButton[0].click();
+                await randomSleep(1000, 2000);
+            }
+        } catch (err) {}
+
+        // 3. Type Query
+        await page.type('textarea[name="q"], input[name="q"]', `site:aliexpress.com ${product.title}`, { delay: 150 });
+        await page.keyboard.press('Enter');
+        
+        // Wait for results to actually load
+        await page.waitForSelector('#search', { timeout: 20000 }).catch(() => console.log("   ⚠️ Search selector slow..."));
+        await randomSleep(3000, 5000);
+
+        // 4. Extract Links
         const foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
             const productLinks = anchors
@@ -93,11 +92,7 @@ async function main() {
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress link found in results.");
-            // Log the page title to debug (e.g., if it's a captcha page)
-            const title = await page.title();
-            console.log(`   (Page Title: ${title})`);
-            
+            console.log("   ❌ No AliExpress link found.");
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -107,8 +102,8 @@ async function main() {
 
         console.log(`   🔗 Found: ${foundLink}`);
 
-        // 5. Visit AliExpress
-        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        // 5. Visit AliExpress (High Timeout)
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 90000 });
         await page.evaluate(() => { window.scrollBy(0, 300); });
         await randomSleep(3000, 5000); 
 
@@ -119,8 +114,7 @@ async function main() {
                 '.price--current--I3Gb7_V', 
                 '.uniform-banner-box-price',
                 '.product-price-current',
-                '[itemprop="price"]',
-                '.money'
+                '[itemprop="price"]'
             ];
             for (const s of selectors) {
                 const el = document.querySelector(s);
