@@ -7,13 +7,14 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
+// Helper to pause execution
 const randomSleep = (min = 2000, max = 5000) => {
   const ms = Math.floor(Math.random() * (max - min + 1) + min);
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 async function main() {
-  console.log("🕵️ Starting Lens Multisearch Hunter (Pro Protocol)...");
+  console.log("🕵️ Starting Lens Multisearch Hunter (Visual Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -33,6 +34,7 @@ async function main() {
 
   console.log(`🎯 Targeting ${productsToHunt.length} products...`);
 
+  // Launch browser with aggressive anti-detection args
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -46,7 +48,8 @@ async function main() {
 
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(60000); 
-  
+
+  // Authenticate Proxy
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
@@ -54,8 +57,7 @@ async function main() {
 
   await page.setViewport({ width: 1920, height: 1080 });
 
-  // 1. SET COOKIES TO FORCE ENGLISH & USD
-  // This prevents 'fr.aliexpress' redirection and currency formatting issues
+  // 1. FORCE COOKIES: English Language & USD Currency
   await page.setCookie({
       name: 'aep_usuc_f',
       value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
@@ -65,11 +67,13 @@ async function main() {
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
+        
+        // --- STEP 1: GOOGLE LENS SEARCH ---
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Google Consent
+        // Click Google "Agree" if present
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree')]");
             if (consentButton.length > 0) await consentButton[0].click();
@@ -77,7 +81,7 @@ async function main() {
 
         await randomSleep(2000, 4000);
 
-        // Extract Link
+        // Extract the best AliExpress Link
         let foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
             const productLinks = anchors
@@ -92,84 +96,126 @@ async function main() {
             continue;
         }
 
-        // 2. NORMALIZE URL (Force Global English Site)
-        // Convert 'fr.aliexpress.com' -> 'www.aliexpress.com'
+        // Clean URL: Force Global Site (www) instead of localized (fr, es, etc)
         foundLink = foundLink.replace(/\/\/[a-z]{2}\.aliexpress\.com/, '//www.aliexpress.com');
         console.log(`   🔗 Visiting: ${foundLink}`);
 
-        await page.goto(foundLink, { waitUntil: 'networkidle2', timeout: 60000 });
-        
-        // 3. DEBUG: Check if we are blocked
-        const pageTitle = await page.title();
-        console.log(`   📄 Page Title: "${pageTitle}"`);
-        
-        if (pageTitle.includes("Login") || pageTitle.includes("Security")) {
-            console.log("   🚫 Blocked by Login Wall. Skipping...");
-            continue;
+        // --- STEP 2: VISIT ALIEXPRESS ---
+        // Retry logic: If page fails to load, try one more time
+        try {
+            await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        } catch (e) {
+            console.log("   ⚠️ Timeout, retrying...");
+            await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 45000 });
         }
 
-        await randomSleep(3000, 5000); 
+        // Wait for page logic to settle
+        await randomSleep(3000, 5000);
+        
+        // Scroll to trigger lazy loading (Choice items need this)
+        await page.evaluate(() => { window.scrollBy(0, 500); });
+        await randomSleep(1000, 2000);
 
-        // 4. EXTRACT PRICE (The "Pro" Way: window.runParams)
-        const priceData = await page.evaluate(() => {
-            try {
-                // METHOD A: Check Global Javascript Variable (Most accurate)
-                // AliExpress stores data in 'runParams'
-                if (window.runParams && window.runParams.data) {
-                    const data = window.runParams.data;
-                    // Path 1: Price Module
-                    if (data.priceModule && data.priceModule.minActivityAmount) {
-                        return data.priceModule.minActivityAmount.value;
-                    }
-                    if (data.priceModule && data.priceModule.maxAmount) {
-                        return data.priceModule.maxAmount.value;
-                    }
-                    // Path 2: Product Info Component
-                    if (data.productInfoComponent && data.productInfoComponent.price) {
-                         return data.productInfoComponent.price.minPrice;
-                    }
-                }
+        const pageTitle = await page.title();
+        console.log(`   📄 Title: "${pageTitle.substring(0, 50)}..."`);
 
-                // METHOD B: JSON-LD
-                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (const script of scripts) {
+        if (!pageTitle || pageTitle === "") {
+             console.log("   ⚠️ Empty title detected. Page might be blocked.");
+        }
+
+        // --- STEP 3: "HUMAN VISION" PRICE EXTRACTION ---
+        const priceFound = await page.evaluate(() => {
+            // HELPER: Clean price text to a float
+            const parsePrice = (str) => {
+                if (!str) return 0;
+                // Remove non-numeric chars except dot
+                return parseFloat(str.replace(/[^0-9.]/g, ''));
+            };
+
+            // 1. META TAGS (Fastest & Most Reliable if present)
+            const metaPrice = document.querySelector('meta[property="og:price:amount"]');
+            if (metaPrice) {
+                const p = parsePrice(metaPrice.getAttribute('content'));
+                if (p > 0) return { source: "Meta Tag", price: p };
+            }
+
+            // 2. JSON-LD (Google's way)
+            const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+            for (const script of scripts) {
+                try {
                     const json = JSON.parse(script.innerText);
                     if (json['@type'] === 'Product' && json.offers) {
-                        const price = Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
-                        if(price) return price;
+                        const val = Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
+                        if (val) return { source: "JSON-LD", price: parsePrice(val) };
+                    }
+                } catch (e) {}
+            }
+
+            // 3. VISUAL ALGORITHM (The "Life or Death" Fallback)
+            // Find ALL elements that look like a price (contain $)
+            const allElements = document.querySelectorAll('*');
+            let candidates = [];
+
+            allElements.forEach(el => {
+                // Must be visible
+                if (!el.offsetParent) return;
+                
+                // Get direct text content
+                const text = el.innerText || "";
+                
+                // Regex: Looks for "US $" or "$" followed by digits
+                // Matches: "$10.99", "US $10.99", "10.99"
+                if (text.match(/(?:US\s?\$|\$)\s*([\d,\.]+)/i)) {
+                    const match = text.match(/(?:US\s?\$|\$)\s*([\d,\.]+)/i);
+                    const val = parsePrice(match[1]);
+                    
+                    if (val > 0.1) { // Filter out $0.00 junk
+                        // Calculate visual weight (Font Size)
+                        const style = window.getComputedStyle(el);
+                        const fontSize = parseFloat(style.fontSize);
+                        
+                        candidates.push({
+                            price: val,
+                            size: fontSize || 0,
+                            text: text
+                        });
                     }
                 }
+            });
 
-                // METHOD C: Regex Search on Body (Last Resort)
-                // Looks for "US $12.34" pattern
-                const bodyText = document.body.innerText;
-                const match = bodyText.match(/US\s?\$(\d+(\.\d+)?)/);
-                if (match && match[1]) return match[1];
+            // Sort by Size (Largest to Smallest) -> The main price is usually the biggest text
+            candidates.sort((a, b) => b.size - a.size);
 
-            } catch (e) { return null; }
+            if (candidates.length > 0) {
+                return { source: "Visual Scan", price: candidates[0].price };
+            }
+
             return null;
         });
 
-        if (priceData) {
-            const cleanPrice = parseFloat(priceData.toString().replace(/[^0-9.]/g, ''));
-            console.log(`   💰 Price Found: $${cleanPrice}`);
+        if (priceFound) {
+            console.log(`   💰 Price Found: $${priceFound.price} (via ${priceFound.source})`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
                     supplierUrl: foundLink,
-                    supplierPrice: cleanPrice,
+                    supplierPrice: priceFound.price,
                     lastSourced: new Date()
                 }
             });
-            console.log("   ✅ Saved.");
+            console.log("   ✅ Saved to Database.");
         } else {
-            console.log("   ⚠️ Price hidden/unavailable.");
+            console.log("   ⚠️ Price still hidden. Logging HTML sample for debugging...");
+            // Log body text length to see if page actually loaded content
+            const bodyLen = await page.evaluate(() => document.body.innerText.length);
+            console.log(`   (Page Body Length: ${bodyLen} chars)`);
+            
             await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
     } catch (e) {
-        console.error(`   ❌ Error: ${e.message}`);
+        console.error(`   ❌ Unexpected Error: ${e.message}`);
     }
   }
 
