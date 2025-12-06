@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, Globe, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, Database, Search, Filter, ChevronLeft, ChevronRight, X, ScanSearch, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -110,9 +110,9 @@ export default async function Dashboard({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-                // --- CHANGED LOGIC HERE ---
-                // Direct AliExpress Search URL
-                const aliExpressSearchUrl = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(product.title)}`;
+                // --- THE GOOGLE LENS HACK ---
+                // This constructs a URL that forces Google Lens to scan the product image
+                const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
                 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
@@ -140,13 +140,13 @@ export default async function Dashboard({
 
                             <div className="grid grid-cols-2 gap-2">
                                 <a 
-                                    href={aliExpressSearchUrl}
+                                    href={lensUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-[#FF4747] hover:bg-[#ff2a2a] text-white py-2 rounded-lg text-xs font-bold transition group/btn"
-                                    title="Search on AliExpress"
+                                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white py-2 rounded-lg text-xs font-bold transition group/btn"
+                                    title="Scan with Google Lens to find precise supplier"
                                 >
-                                    <Globe size={14} className="text-white" /> AliExpress
+                                    <ScanSearch size={14} className="text-white" /> Lens Search
                                 </a>
                                 <a 
                                     href={product.sourceUrl} 
