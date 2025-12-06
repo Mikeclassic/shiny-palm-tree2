@@ -24,14 +24,17 @@ model Product {
   sourceUrl   String   @unique
   aesthetic   String?  @default("Y2K")
   createdAt   DateTime @default(now())
-
-  // --- NEW FIELDS FOR SAVED LISTINGS ---
+  
+  // AI Fields
   generatedDesc  String?  @db.Text
   generatedTags  String?  @db.Text
-  
-  // User Preferences Saved for this item
-  condition      String?  // e.g. "Brand New", "Vintage Used"
-  era            String?  // e.g. "Y2K", "90s", "Modern"
-  gender         String?  // "Womens", "Mens", "Unisex"
-  style          String?  // "Streetwear", "Goth", "Coquette"
+  condition      String?
+  era            String?
+  gender         String?
+  style          String?
+
+  // NEW: Supplier Hunter Fields
+  supplierUrl    String?
+  supplierPrice  Float?
+  lastSourced    DateTime?
 }
