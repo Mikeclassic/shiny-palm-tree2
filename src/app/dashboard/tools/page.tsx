@@ -1,27 +1,44 @@
 import { db } from "@/lib/db";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Database, RefreshCw } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
+  // 1. Get total count of products in the DB
+  const totalCount = await db.product.count();
+  
+  // 2. Get the actual products (up to 100)
   const products = await db.product.findMany({
-    take: 100, // <--- CHANGED FROM 9 TO 100
+    take: 100,
     orderBy: { createdAt: 'desc' }
   });
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
-        <p className="text-gray-400 mt-2">
-            Showing {products.length} latest high-margin items.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6">
+        <div>
+            <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
+            <p className="text-gray-400 mt-2">Top high-margin items from 50+ stores.</p>
+        </div>
+        
+        {/* DEBUG COUNTER */}
+        <div className="bg-gray-900 border border-gray-700 p-4 rounded-xl flex items-center gap-4">
+            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
+                <Database size={24} />
+            </div>
+            <div>
+                <p className="text-xs text-gray-400 uppercase font-bold">In Database</p>
+                <p className="text-xl font-mono text-white font-bold">
+                    {products.length} <span className="text-gray-500 text-sm">/ {totalCount} total</span>
+                </p>
+            </div>
+        </div>
       </div>
 
       {products.length === 0 ? (
         <div className="p-10 border border-dashed border-gray-800 rounded-xl text-center text-gray-500">
             <p>No products found yet.</p>
-            <p className="text-sm mt-2">Go to GitHub Actions and run "Daily Product Scraper" manually to populate data.</p>
+            <p className="text-sm mt-2">Go to GitHub Actions and run "Daily Product Scraper" manually.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
