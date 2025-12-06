@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Lens Multisearch Hunter (Restored Original)...");
+  console.log("🕵️ Starting Lens Multisearch Hunter (Poland Proxy Fix)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -40,48 +40,45 @@ async function main() {
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--window-size=1366,768',
+        '--window-size=1920,1080',
         `--proxy-server=http://${process.env.PROXY_SERVER}`
     ]
   });
 
   const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(90000); 
+  page.setDefaultNavigationTimeout(60000); 
   
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
   });
 
-  await page.setViewport({ width: 1366, height: 768 });
+  await page.setViewport({ width: 1920, height: 1080 });
 
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
         // 1. CONSTRUCT THE MAGIC LENS URL
-        // This combines the Image + The Keyword "aliexpress"
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // 2. Handle Google Consent (The usual blocker)
+        // 2. Handle Google Consent (POLISH UPDATE)
         try {
-            // Added German/Polish keywords to ensure it clicks on your proxy
-            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'ablehnen') or contains(., 'akzeptieren') or contains(., 'Zaakceptuj') or contains(., 'Odrzuć')]");
+            // Added 'Odrzuć' (Reject), 'Zaakceptuj' (Accept), 'Zgadzam' (Agree) for Poland
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam')]");
             if (consentButton.length > 0) {
                 console.log("   🍪 Clicking Cookie Consent...");
                 await consentButton[0].click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
             }
         } catch (err) {}
 
-        await randomSleep(3000, 6000); // Wait for Lens/Search to load
+        await randomSleep(3000, 6000); 
 
         // 3. EXTRACT FIRST RESULT (Original Logic)
-        // The result of this Lens URL is a Google Search Result Page.
-        // We just need the first organic link to AliExpress.
         const foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
             
@@ -89,16 +86,11 @@ async function main() {
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
 
-            // The first one is usually the most relevant visual match
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
             console.log("   ❌ No AliExpress link found in Lens results.");
-            // Log Title to debug
-            const title = await page.title();
-            console.log(`   (Page Title: ${title})`);
-            
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -109,11 +101,10 @@ async function main() {
         console.log(`   🔗 Found: ${foundLink}`);
 
         // 4. VISIT ALIEXPRESS
-        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 90000 });
-        await page.evaluate(() => { window.scrollBy(0, 500); });
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await randomSleep(3000, 6000); 
 
-        // 5. EXTRACT PRICE
+        // 5. EXTRACT PRICE (Original Logic + Comma Fix)
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
@@ -131,8 +122,11 @@ async function main() {
         });
 
         if (priceText) {
-            // Simple cleanup logic
-            const cleanPrice = parseFloat(priceText.toString().replace(/[^0-9.]/g, ''));
+            let raw = priceText.toString();
+            // Fix Polish/European comma decimals (e.g. 12,99 -> 12.99)
+            if (raw.includes(',') && !raw.includes('.')) raw = raw.replace(',', '.');
+            
+            const cleanPrice = parseFloat(raw.replace(/[^0-9.]/g, ''));
             console.log(`   💰 Price: $${cleanPrice}`);
 
             await prisma.product.update({
