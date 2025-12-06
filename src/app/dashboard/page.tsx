@@ -110,9 +110,10 @@ export default async function Dashboard({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-                // --- THE GOOGLE LENS HACK ---
-                // This constructs a URL that forces Google Lens to scan the product image
-                const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
+                // --- GOOGLE IMAGES + SITE FILTER ---
+                // tbm=isch -> Image Search Mode
+                // q=site:aliexpress.com -> Restrict to AliExpress
+                const googleAliUrl = `https://www.google.com/search?tbm=isch&q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
                 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col">
@@ -140,13 +141,13 @@ export default async function Dashboard({
 
                             <div className="grid grid-cols-2 gap-2">
                                 <a 
-                                    href={lensUrl}
+                                    href={googleAliUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white py-2 rounded-lg text-xs font-bold transition group/btn"
-                                    title="Scan with Google Lens to find precise supplier"
+                                    className="flex items-center justify-center gap-2 bg-[#FF4747] hover:bg-[#d63b3b] text-white py-2 rounded-lg text-xs font-bold transition group/btn"
+                                    title="Search AliExpress via Google Images"
                                 >
-                                    <ScanSearch size={14} className="text-white" /> Lens Search
+                                    <ScanSearch size={14} className="text-white" /> Find Supplier
                                 </a>
                                 <a 
                                     href={product.sourceUrl} 
