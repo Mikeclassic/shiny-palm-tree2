@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { UserButton } from "@clerk/nextjs";
-import { LayoutDashboard, Wand2, CreditCard, LogOut, Zap } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +15,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="space-y-2 flex-1">
           <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
             <LayoutDashboard size={20} /> <span className="font-medium">Dashboard</span>
+          </Link>
+          <Link href="/dashboard/saved" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
+            <Bookmark size={20} /> <span className="font-medium">Saved Listings</span>
           </Link>
           <Link href="/dashboard/tools" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-900 hover:text-white transition">
             <Wand2 size={20} /> <span className="font-medium">AI Tools</span>
