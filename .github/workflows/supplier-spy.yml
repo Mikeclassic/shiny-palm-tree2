@@ -2,8 +2,8 @@ name: Supplier Hunter Bot
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Every 6 hours
-  workflow_dispatch: # Allows manual run button
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   hunt:
@@ -24,3 +24,6 @@ jobs:
         run: npm run hunt
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PROXY_SERVER: ${{ secrets.PROXY_SERVER }}
+          PROXY_USERNAME: ${{ secrets.PROXY_USERNAME }}
+          PROXY_PASSWORD: ${{ secrets.PROXY_PASSWORD }}
