@@ -13,14 +13,14 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Visual Supplier Hunter (Bing Image Mode)...");
+  console.log("🕵️ Starting Lens Multisearch Hunter...");
 
-  if (!process.env.PROXY_SERVER) {
+  if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products to hunt
+  // Find products without a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -46,14 +46,7 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  
-  // Set headers to look like a real browser visiting Bing
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://www.bing.com/'
-  });
-
-  page.setDefaultNavigationTimeout(120000); // 2 mins for slow proxies
+  page.setDefaultNavigationTimeout(90000); 
   
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
@@ -64,81 +57,62 @@ async function main() {
 
   for (const product of productsToHunt) {
     try {
-        console.log(`\n🔍 Visual Hunting: ${product.title}`);
+        console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // 1. CONSTRUCT BING VISUAL SEARCH URL
-        // We feed the product image directly to Bing. 
-        // This bypasses text mismatch issues entirely.
-        const imageUrl = encodeURIComponent(product.imageUrl);
-        const searchUrl = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIHMP&q=imgurl:${imageUrl}`;
+        // 1. CONSTRUCT THE MAGIC LENS URL
+        // This combines the Image + The Keyword "aliexpress"
+        const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
-        console.log("   📸 Uploading Image to Bing...");
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-        await randomSleep(3000, 6000);
+        console.log("   📸 Visiting Lens Multisearch...");
+        await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
+        
+        // 2. Handle Google Consent (The usual blocker)
+        try {
+            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree')]");
+            if (consentButton.length > 0) {
+                console.log("   🍪 Clicking Cookie Consent...");
+                await consentButton[0].click();
+                await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+            }
+        } catch (err) {}
 
-        // 2. EXTRACT ALIEXPRESS LINKS
-        // Bing "Visual Search" results are often in list items with specific attributes
+        await randomSleep(3000, 6000); // Wait for Lens/Search to load
+
+        // 3. EXTRACT FIRST RESULT
+        // The result of this Lens URL is a Google Search Result Page.
+        // We just need the first organic link to AliExpress.
         const foundLink = await page.evaluate(() => {
-            // Get all links on the page
             const anchors = Array.from(document.querySelectorAll('a'));
             
-            // Filter for AliExpress product pages
-            const aliLinks = anchors
+            const productLinks = anchors
                 .map(a => a.href)
-                .filter(href => href && (href.includes('aliexpress.com/item') || href.includes('aliexpress.com/i/')));
+                .filter(href => href && href.includes('aliexpress.com/item'));
 
-            // Return the first one (Bing usually sorts by visual similarity)
-            return aliLinks.length > 0 ? aliLinks[0] : null;
+            // The first one is usually the most relevant visual match
+            return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
-            console.log("   ❌ No visual match found on AliExpress.");
+            console.log("   ❌ No AliExpress link found in Lens results.");
+            // Log Title to debug
+            const title = await page.title();
+            console.log(`   (Page Title: ${title})`);
             
-            // Fallback: Try Text Search on Bing if Visual fails
-            console.log("   🔄 Trying Text Search Fallback...");
-            const textUrl = `https://www.bing.com/search?q=${encodeURIComponent(product.title)} aliexpress`; // Simple query
-            await page.goto(textUrl, { waitUntil: 'domcontentloaded' });
-            await randomSleep(2000, 4000);
-            
-            const textLink = await page.evaluate(() => {
-                const anchors = Array.from(document.querySelectorAll('li.b_algo h2 a, li.b_algo a'));
-                const links = anchors.map(a => a.href).filter(h => h && h.includes('aliexpress.com/item'));
-                return links.length > 0 ? links[0] : null;
+            await prisma.product.update({
+                where: { id: product.id },
+                data: { lastSourced: new Date() }
             });
-
-            if(textLink) {
-                console.log(`   🔗 Found via Text: ${textLink}`);
-                await processAliExpressPage(page, textLink, product);
-            } else {
-                console.log("   ❌ Text search also failed.");
-                await prisma.product.update({
-                    where: { id: product.id },
-                    data: { lastSourced: new Date() }
-                });
-            }
             continue;
         }
 
-        console.log(`   🔗 Found via Visual: ${foundLink}`);
-        await processAliExpressPage(page, foundLink, product);
+        console.log(`   🔗 Found: ${foundLink}`);
 
-    } catch (e) {
-        console.error(`   ❌ Error: ${e.message}`);
-    }
-  }
-
-  await browser.close();
-  await prisma.$disconnect();
-  console.log("\n🏁 Hunt Complete.");
-}
-
-// Helper function to extract price and save
-async function processAliExpressPage(page, link, product) {
-    try {
-        await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 90000 });
+        // 4. VISIT ALIEXPRESS
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 90000 });
         await page.evaluate(() => { window.scrollBy(0, 500); });
-        await randomSleep(3000, 5000);
+        await randomSleep(3000, 6000); 
 
+        // 5. EXTRACT PRICE
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
@@ -156,28 +130,34 @@ async function processAliExpressPage(page, link, product) {
         });
 
         if (priceText) {
-            const cleanPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+            const cleanPrice = parseFloat(priceText.toString().replace(/[^0-9.]/g, ''));
             console.log(`   💰 Price: $${cleanPrice}`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: link,
+                    supplierUrl: foundLink,
                     supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Link valid, price hidden.");
+            console.log("   ⚠️ Link valid, but price hidden.");
             await prisma.product.update({
                 where: { id: product.id },
-                data: { supplierUrl: link, lastSourced: new Date() }
+                data: { supplierUrl: foundLink, lastSourced: new Date() }
             });
         }
-    } catch(e) {
-        console.log("   ⚠️ Failed to load AliExpress page:", e.message);
+
+    } catch (e) {
+        console.error(`   ❌ Error: ${e.message}`);
     }
+  }
+
+  await browser.close();
+  await prisma.$disconnect();
+  console.log("\n🏁 Hunt Complete.");
 }
 
 main();
