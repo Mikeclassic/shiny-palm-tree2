@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
+// Enable Stealth - critical for avoiding the "Welcome" captcha
 puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
@@ -13,7 +14,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🦎 Starting Chameleon Hunter (Desktop Search -> Mobile Visit)...");
+  console.log("🦅 Starting Desktop Hunter (Consistency Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -31,13 +32,13 @@ async function main() {
     return;
   }
 
-  // Launch with maximum stealth arguments
+  // 1. LAUNCH BROWSER (Standard Desktop Config)
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
         '--no-sandbox', 
         '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled', // Critical: Hides "Chrome is being controlled by test software"
+        '--disable-blink-features=AutomationControlled',
         '--window-size=1920,1080',
         `--proxy-server=http://${process.env.PROXY_SERVER}`
     ]
@@ -46,52 +47,48 @@ async function main() {
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(60000); 
 
-  // 1. AUTHENTICATE PROXY
+  // 2. AUTHENTICATE PROXY
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
     password: process.env.PROXY_PASSWORD
   });
 
-  // 2. APPLY ANTI-DETECT PATCH (Removes 'navigator.webdriver' flag)
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => false,
-    });
+  // 3. SET CONSISTENT DESKTOP FINGERPRINT
+  // We set this ONCE and never change it.
+  await page.setViewport({ width: 1920, height: 1080 });
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
+  // 4. INJECT COOKIES (Force English/USD)
+  // This prevents the redirect to 'fr.aliexpress' login pages
+  await page.setCookie({
+      name: 'aep_usuc_f',
+      value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
+      domain: '.aliexpress.com'
   });
 
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // ==========================================
-        // PHASE 1: DESKTOP MODE (Find the Link)
-        // ==========================================
-        await page.setViewport({ width: 1920, height: 1080 });
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-
+        // --- STEP 1: GOOGLE LENS ---
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
+        await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        try {
-            await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
-        } catch(e) {
-            console.log("   ⚠️ Google Lens Timeout (might still have loaded)");
-        }
-        
-        // Handle Google Consent
+        // Handle Google Consent Popup
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser')]");
             if (consentButton.length > 0) await consentButton[0].click();
         } catch (err) {}
 
-        await randomSleep(2000, 4000);
+        await randomSleep(3000, 5000);
 
-        // Robust Link Extraction (Handles Google Search & Lens Grid)
+        // Find Link
         let foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
-            // Filter for AliExpress Item links (ignore login/categories)
+            // Look for aliexpress.com/item links
             const productLinks = anchors
                 .map(a => a.href)
-                .filter(href => href && href.includes('aliexpress.com/item') && !href.includes('login') && !href.includes('account'));
+                .filter(href => href && href.includes('aliexpress.com/item'));
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
@@ -101,105 +98,85 @@ async function main() {
             continue;
         }
 
-        // Clean URL (Remove extra params)
-        const cleanUrl = foundLink.split('?')[0];
-        console.log(`   🔗 Found: ${cleanUrl}`);
-
-        // ==========================================
-        // PHASE 2: MOBILE MODE (Visit AliExpress)
-        // ==========================================
-        // We pretend to be an iPhone. Mobile sites are 10x easier to scrape.
+        // --- STEP 2: SANITIZE URL (CRITICAL FIX) ---
+        // Convert "fr.aliexpress.com/item/123.html" -> "www.aliexpress.com/item/123.html"
+        // This stops the server from detecting a mismatch between your US Cookies and the French URL.
+        const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
+        let targetUrl = foundLink;
         
-        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-        await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1');
-        
-        // Force English/USD on Mobile
-        await page.setCookie({
-            name: 'aep_usuc_f',
-            value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
-            domain: '.aliexpress.com'
-        });
-
-        // Setup Network Trap (Listen for JSON Price Data)
-        let capturedPrice = 0;
-        const responseListener = async (response) => {
-            const url = response.url();
-            // Mobile APIs (mtop = Taobao/Ali Mobile Protocol)
-            if (url.includes('mtop') || url.includes('calc') || url.includes('getWapItemDetail')) {
-                try {
-                    const text = await response.text();
-                    // Regex for various JSON price formats
-                    const match = text.match(/"(actMinPrice|minPrice|price|formatedAmount)"\s*:\s*"?(\d+(\.\d+)?)"?/);
-                    if (match && match[2]) {
-                        const p = parseFloat(match[2]);
-                        if (p > 0.1) capturedPrice = p;
-                    }
-                } catch(e) {}
-            }
-        };
-
-        page.on('response', responseListener);
-
-        console.log("   📱 Switching to Mobile View & Visiting...");
-        
-        try {
-            await page.goto(cleanUrl, { waitUntil: 'networkidle2', timeout: 45000 });
-        } catch (e) {
-            console.log("   ⚠️ Navigation Timeout (Checking if price captured...)");
+        if (idMatch && idMatch[1]) {
+            targetUrl = `https://www.aliexpress.com/item/${idMatch[1]}.html`;
+            console.log(`   🔗 Normalized Link: ${targetUrl}`);
+        } else {
+            console.log(`   🔗 Visiting (Raw): ${foundLink}`);
         }
 
-        await randomSleep(3000, 5000);
-        page.off('response', responseListener);
+        // --- STEP 3: NAVIGATE ---
+        try {
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        } catch (e) {
+            console.log("   ⚠️ Navigation warning (proceeding to check content)...");
+        }
 
-        // --- FALLBACK: SCRAPE VISIBLE MOBILE TEXT ---
-        if (capturedPrice === 0) {
-            capturedPrice = await page.evaluate(() => {
-                // 1. Check for specific mobile classes
-                const selectors = [
-                    '.price-text', 
-                    '.uniform-banner-box-price', 
-                    '.product-price-current',
-                    '[class*="price"]' // Wildcard fallback
-                ];
+        // Humanize: Scroll down slightly to trigger JS loading
+        await page.evaluate(() => window.scrollBy(0, 500));
+        await randomSleep(2000, 4000);
+
+        // --- STEP 4: DATA EXTRACTION (The Desktop Method) ---
+        // On Desktop, AliExpress puts data in 'window.runParams'. We prefer this over HTML parsing.
+        const priceData = await page.evaluate(() => {
+            try {
+                // Method A: RunParams (Global Variable)
+                if (window.runParams && window.runParams.data) {
+                    const d = window.runParams.data;
+                    if (d.priceModule?.minActivityAmount?.value) return d.priceModule.minActivityAmount.value;
+                    if (d.productInfoComponent?.price?.minPrice) return d.productInfoComponent.price.minPrice;
+                }
                 
-                for (const sel of selectors) {
-                    const el = document.querySelector(sel);
-                    if (el && el.innerText) {
-                        const txt = el.innerText;
-                        // Extract number from "$ 12.34" or "US $12.34"
-                        const match = txt.match(/[\d\.,]+/);
-                        if (match) {
-                            // Fix comma decimals (12,34 -> 12.34)
-                            const clean = parseFloat(match[0].replace(',', '.'));
-                            if (!isNaN(clean) && clean > 0) return clean;
-                        }
+                // Method B: Schema.org (JSON-LD)
+                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+                for (const s of scripts) {
+                    const json = JSON.parse(s.innerText);
+                    if (json['@type'] === 'Product' && json.offers) {
+                        return Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
                     }
                 }
-                return 0;
-            });
-        }
 
-        // --- FINAL CHECK ---
-        if (capturedPrice > 0) {
-            console.log(`   💰 Price Found: $${capturedPrice}`);
+                // Method C: Visual Text (Fallback)
+                const text = document.body.innerText;
+                // Regex for "US $12.99"
+                const match = text.match(/US\s?\$(\d+(\.\d+)?)/);
+                if (match) return match[1];
+
+            } catch (e) { return null; }
+            return null;
+        });
+
+        if (priceData) {
+            const cleanPrice = parseFloat(priceData.toString().replace(/[^0-9.]/g, ''));
+            console.log(`   💰 Price Found: $${cleanPrice}`);
+
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: cleanUrl,
-                    supplierPrice: capturedPrice,
+                    supplierUrl: targetUrl,
+                    supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price hidden.");
-            // Log Page Title to see if blocked
-            const title = await page.title();
+            // Debugging the Block
+            const pageTitle = await page.title();
             const bodyLen = await page.evaluate(() => document.body.innerText.length);
-            console.log(`   (Debug: Title="${title}", BodyLen=${bodyLen})`);
+            console.log(`   ⚠️ Price hidden. Title: "${pageTitle}", Body Size: ${bodyLen}`);
             
-            // Still save URL even if price is missing
-            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: cleanUrl, lastSourced: new Date() }});
+            // If body is tiny, we were blocked. If body is large, we just missed the CSS.
+            // We save the URL anyway so the user can manually check.
+            await prisma.product.update({ 
+                where: { id: product.id }, 
+                data: { supplierUrl: targetUrl, lastSourced: new Date() }
+            });
         }
 
     } catch (e) {
