@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-// Enable Stealth - critical for avoiding the "Welcome" captcha
 puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
@@ -14,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🦅 Starting Desktop Hunter (Consistency Protocol)...");
+  console.log("🦁 Starting Expert Hunter (Warm-up Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -32,7 +31,7 @@ async function main() {
     return;
   }
 
-  // 1. LAUNCH BROWSER (Standard Desktop Config)
+  // 1. LAUNCH BROWSER
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -53,18 +52,24 @@ async function main() {
     password: process.env.PROXY_PASSWORD
   });
 
-  // 3. SET CONSISTENT DESKTOP FINGERPRINT
-  // We set this ONCE and never change it.
   await page.setViewport({ width: 1920, height: 1080 });
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-  // 4. INJECT COOKIES (Force English/USD)
-  // This prevents the redirect to 'fr.aliexpress' login pages
-  await page.setCookie({
-      name: 'aep_usuc_f',
-      value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
-      domain: '.aliexpress.com'
-  });
+  // 3. WARM-UP PHASE (Critical Step)
+  // We visit the homepage FIRST to get legitimate cookies for the Proxy's IP region.
+  console.log("   ☕ Warming up cookies on Homepage...");
+  try {
+      await page.goto('https://www.aliexpress.com/', { waitUntil: 'domcontentloaded' });
+      await randomSleep(2000, 4000);
+      
+      // Close "Welcome" popup if it exists
+      try {
+          const closeBtn = await page.$x("//div[contains(@class, 'close-layer') or contains(@class, 'pop-close-btn')]");
+          if (closeBtn.length > 0) await closeBtn[0].click();
+      } catch (e) {}
+      
+  } catch (e) {
+      console.log("   ⚠️ Homepage warm-up failed, continuing anyway...");
+  }
 
   for (const product of productsToHunt) {
     try {
@@ -72,9 +77,13 @@ async function main() {
 
         // --- STEP 1: GOOGLE LENS ---
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
+        
+        // Use Google as Referer
+        await page.setExtraHTTPHeaders({ 'Referer': 'https://www.google.com/' });
+        
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Google Consent Popup
+        // Handle Google Consent
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Tout refuser')]");
             if (consentButton.length > 0) await consentButton[0].click();
@@ -85,7 +94,6 @@ async function main() {
         // Find Link
         let foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
-            // Look for aliexpress.com/item links
             const productLinks = anchors
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
@@ -98,85 +106,82 @@ async function main() {
             continue;
         }
 
-        // --- STEP 2: SANITIZE URL (CRITICAL FIX) ---
-        // Convert "fr.aliexpress.com/item/123.html" -> "www.aliexpress.com/item/123.html"
-        // This stops the server from detecting a mismatch between your US Cookies and the French URL.
-        const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
-        let targetUrl = foundLink;
-        
-        if (idMatch && idMatch[1]) {
-            targetUrl = `https://www.aliexpress.com/item/${idMatch[1]}.html`;
-            console.log(`   🔗 Normalized Link: ${targetUrl}`);
-        } else {
-            console.log(`   🔗 Visiting (Raw): ${foundLink}`);
-        }
+        // --- STEP 2: NORMALIZE URL ---
+        // We force WWW but we DO NOT inject "US" cookies. We let the warm-up cookies handle the region.
+        foundLink = foundLink.replace(/\/\/[a-z]{2}\.aliexpress\.com/, '//www.aliexpress.com');
+        console.log(`   🔗 Link: ${foundLink}`);
 
-        // --- STEP 3: NAVIGATE ---
+        // --- STEP 3: NAVIGATE WITH REFERER ---
+        // This tells AliExpress we came from Google Search, which is trusted.
+        await page.setExtraHTTPHeaders({ 'Referer': 'https://www.google.com/' });
+
         try {
-            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 45000 });
         } catch (e) {
-            console.log("   ⚠️ Navigation warning (proceeding to check content)...");
+            console.log("   ⚠️ Navigation timeout (Checking content...)");
         }
 
-        // Humanize: Scroll down slightly to trigger JS loading
-        await page.evaluate(() => window.scrollBy(0, 500));
-        await randomSleep(2000, 4000);
+        await randomSleep(3000, 5000);
 
-        // --- STEP 4: DATA EXTRACTION (The Desktop Method) ---
-        // On Desktop, AliExpress puts data in 'window.runParams'. We prefer this over HTML parsing.
+        // --- STEP 4: DIAGNOSE BLOCKING ---
+        const bodyText = await page.evaluate(() => document.body.innerText);
+        const bodyLen = bodyText.length;
+        
+        if (bodyLen < 2000) {
+            console.log(`   ⚠️ BLOCKED. Page Size: ${bodyLen} chars.`);
+            console.log(`   📄 Page Says: "${bodyText.substring(0, 100).replace(/\n/g, ' ')}..."`);
+            
+            // If it's a "Slide to verify" or "Click to verify", we might need a captcha solver service.
+            // But for now, we just skip.
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
+            continue;
+        }
+
+        // --- STEP 5: EXTRACTION ---
         const priceData = await page.evaluate(() => {
             try {
-                // Method A: RunParams (Global Variable)
+                // Method 1: Global Data
                 if (window.runParams && window.runParams.data) {
                     const d = window.runParams.data;
                     if (d.priceModule?.minActivityAmount?.value) return d.priceModule.minActivityAmount.value;
                     if (d.productInfoComponent?.price?.minPrice) return d.productInfoComponent.price.minPrice;
                 }
                 
-                // Method B: Schema.org (JSON-LD)
-                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (const s of scripts) {
-                    const json = JSON.parse(s.innerText);
-                    if (json['@type'] === 'Product' && json.offers) {
-                        return Array.isArray(json.offers) ? json.offers[0].price : json.offers.price;
-                    }
-                }
-
-                // Method C: Visual Text (Fallback)
+                // Method 2: Regex on Body (Works for any currency/language)
+                // Looks for digits following a currency symbol
                 const text = document.body.innerText;
-                // Regex for "US $12.99"
-                const match = text.match(/US\s?\$(\d+(\.\d+)?)/);
-                if (match) return match[1];
+                const match = text.match(/[\$€£]\s*(\d+([.,]\d+)?)/);
+                if (match && match[1]) return match[1];
 
             } catch (e) { return null; }
             return null;
         });
 
         if (priceData) {
-            const cleanPrice = parseFloat(priceData.toString().replace(/[^0-9.]/g, ''));
-            console.log(`   💰 Price Found: $${cleanPrice}`);
+            // Clean price (handle commas for EU proxies)
+            let cleanPrice = 0;
+            let rawString = priceData.toString();
+            
+            // If "12,34" -> "12.34"
+            if (rawString.includes(',') && !rawString.includes('.')) {
+                rawString = rawString.replace(',', '.');
+            }
+            cleanPrice = parseFloat(rawString.replace(/[^0-9.]/g, ''));
+
+            console.log(`   💰 Price Found: ${cleanPrice}`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
-                    supplierUrl: targetUrl,
+                    supplierUrl: foundLink,
                     supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            // Debugging the Block
-            const pageTitle = await page.title();
-            const bodyLen = await page.evaluate(() => document.body.innerText.length);
-            console.log(`   ⚠️ Price hidden. Title: "${pageTitle}", Body Size: ${bodyLen}`);
-            
-            // If body is tiny, we were blocked. If body is large, we just missed the CSS.
-            // We save the URL anyway so the user can manually check.
-            await prisma.product.update({ 
-                where: { id: product.id }, 
-                data: { supplierUrl: targetUrl, lastSourced: new Date() }
-            });
+            console.log("   ⚠️ Price not found (Structure changed or OOS).");
+            await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
     } catch (e) {
