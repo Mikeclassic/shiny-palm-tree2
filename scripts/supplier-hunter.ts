@@ -13,13 +13,14 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Hybrid Supplier Hunter...");
+  console.log("🕵️ Starting Supplier Hunter (Bing Mode)...");
 
-  if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
+  if (!process.env.PROXY_SERVER) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
+  // Find products
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 3, 
@@ -46,8 +47,8 @@ async function main() {
 
   const page = await browser.newPage();
   
-  // High timeout for proxies
-  page.setDefaultNavigationTimeout(90000); 
+  // Set timeout to 2 minutes (Proxies can be slow)
+  page.setDefaultNavigationTimeout(120000); 
   
   await page.authenticate({
     username: process.env.PROXY_USERNAME,
@@ -56,55 +57,44 @@ async function main() {
 
   await page.setViewport({ width: 1366, height: 768 });
 
+  // 1. Verify Proxy Works (Optional Debug)
+  try {
+    console.log("   📡 Connecting to Proxy...");
+    await page.goto('http://ipv4.webshare.io/', { waitUntil: 'domcontentloaded' });
+    const ip = await page.evaluate(() => document.body.innerText);
+    console.log(`   ✅ Proxy Active. IP: ${ip.trim()}`);
+  } catch (e) {
+    console.log("   ⚠️ Proxy check slow, continuing anyway...");
+  }
+
   for (const product of productsToHunt) {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // STEP 1: WARM UP (Visit Home to get Cookies)
-        try {
-            await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded' });
-            await randomSleep(1000, 2000);
-
-            // Handle Cookies (If any)
-            const consentButton = await page.$x("//button[contains(., 'Reject all') or contains(., 'I agree') or contains(., 'Accept all')]");
-            if (consentButton.length > 0) {
-                console.log("   🍪 Clicking Cookie Consent...");
-                await consentButton[0].click();
-                await randomSleep(2000, 3000);
-            }
-        } catch (e) {
-            console.log("   ⚠️ Homepage load glitch (ignoring)...");
-        }
-
-        // STEP 2: DIRECT SEARCH (More reliable than typing)
-        // We use the trust established in Step 1 to load the search URL directly
-        const searchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
-        console.log("   🚀 Loading Search Results...");
+        // 2. Bing Search (site:aliexpress.com)
+        // Bing is much less aggressive with Captchas than Google
+        const searchUrl = `https://www.bing.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}`;
         
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-        await randomSleep(3000, 5000); // Wait for JS to render results
+        await randomSleep(2000, 4000);
 
-        // Check if we hit a captcha/block
-        const pageTitle = await page.title();
-        if (pageTitle.includes("Verify") || pageTitle.includes("Captcha")) {
-            console.log("   🛑 Proxy blocked by Captcha. Skipping...");
-            continue;
-        }
-
-        // STEP 3: GREEDY LINK EXTRACTION
+        // 3. Extract Links from Bing Results
         const foundLink = await page.evaluate(() => {
-            const anchors = Array.from(document.querySelectorAll('a'));
+            const anchors = Array.from(document.querySelectorAll('li.b_algo h2 a, li.b_algo a'));
             
-            // Find ANY link that goes to an AliExpress item
             const productLinks = anchors
                 .map(a => a.href)
-                .filter(href => href && (href.includes('aliexpress.com/item') || href.includes('/i/'))); // /i/ is also used
+                .filter(href => href && (href.includes('aliexpress.com/item') || href.includes('/i/')));
 
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (!foundLink) {
-            console.log("   ❌ No AliExpress link found.");
+            console.log("   ❌ No AliExpress link found on Bing.");
+            // Log page title to see if we got blocked
+            const title = await page.title();
+            console.log(`   (Page Title: ${title})`);
+
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
@@ -114,12 +104,12 @@ async function main() {
 
         console.log(`   🔗 Found: ${foundLink}`);
 
-        // STEP 4: VISIT SUPPLIER
-        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 90000 });
-        await page.evaluate(() => { window.scrollBy(0, 500); }); // Trigger lazy loads
+        // 4. Visit AliExpress
+        await page.goto(foundLink, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        await page.evaluate(() => { window.scrollBy(0, 500); }); 
         await randomSleep(3000, 6000); 
 
-        // STEP 5: EXTRACT PRICE
+        // 5. Extract Price
         const priceText = await page.evaluate(() => {
             const selectors = [
                 '.product-price-value', 
@@ -128,23 +118,19 @@ async function main() {
                 '.product-price-current',
                 '[itemprop="price"]',
                 '.money',
-                // Script tag fallback (Very reliable)
-                'script[type="application/ld+json"]'
+                // Bing sometimes caches price in description meta
+                'meta[name="description"]'
             ];
             
             for (const s of selectors) {
                 const el = document.querySelector(s);
-                
-                // If it's the JSON-LD script
-                if (s.includes('json') && el) {
-                    try {
-                        const json = JSON.parse(el.innerText);
-                        if (json.offers && json.offers.price) return json.offers.price;
-                        if (json.offers && json.offers[0] && json.offers[0].price) return json.offers[0].price;
-                    } catch(e) {}
+                // Check meta tags specifically
+                if (s.includes('meta') && el) {
+                    const content = el.getAttribute('content');
+                    if (content && content.match(/\$\d+\.\d+/)) return content.match(/\$\d+\.\d+/)[0];
                 }
-
-                // If it's a visible element
+                
+                // Check visible elements
                 if (el && el.innerText && /\d/.test(el.innerText)) return el.innerText;
             }
             return null;
