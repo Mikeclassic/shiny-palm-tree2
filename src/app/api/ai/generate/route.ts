@@ -4,36 +4,39 @@ export async function POST(req: Request) {
   try {
     const { title, price, imageUrl, preferences } = await req.json();
 
-    if (!process.env.OPENROUTER_API_KEY) {
-        // Log this to Vercel logs so you can see if the key is missing
-        console.error("Missing OPENROUTER_API_KEY");
-        return NextResponse.json("Error: No OpenRouter API Key found.", { status: 500 });
+    // 1. Sanitize the Key (Remove accidental spaces/newlines from copy-paste)
+    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+
+    if (!apiKey) {
+        return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set in Vercel." }, { status: 500 });
     }
 
     const systemPrompt = `
     You are an expert top-rated seller on Depop and Vinted.
     Your goal is to MAXIMIZE CONVERSION and sell this item immediately.
 
-    USER SETTINGS (Respect these strictly):
+    USER SETTINGS:
     - Condition: ${preferences?.condition || "Infer from image"}
-    - Era: ${preferences?.era || "Modern/Y2K"}
+    - Era: ${preferences?.era || "Modern"}
+    - Style: ${preferences?.style || "Trendy"}
     - Gender: ${preferences?.gender || "Unisex"}
-    - Aesthetic: ${preferences?.style || "Trendy"}
 
-    ITEM DETAILS:
+    ITEM:
     - Title: ${title}
-    - Market Price: $${price}
+    - Price: $${price}
 
     INSTRUCTIONS:
-    1. ANALYZE the image. Describe the specific color, fit, and texture.
-    2. Write a high-converting description using Gen-Z slang (slay, rare, grail) but keep it professional.
-    3. Respect Depop character limits (under 1000 chars).
-    4. Include bullet points for: 📏 Measurements, 🧵 Material, 💎 Condition.
-    5. GENERATE 15-20 viral SEO hashtags at the bottom.
+    1. ANALYZE the image.
+    2. Write a viral description (under 1000 chars).
+    3. Use bullet points for Measurements, Material, Condition.
+    4. End with 20 SEO hashtags.
     `;
 
-    // Construct the message payload
-    const messages = [
+    // 2. Construct Payload
+    // Note: If x-ai/grok-4.1-fast fails, try x-ai/grok-2-vision-1212
+    const payload = {
+      model: "x-ai/grok-2-vision-1212", // Switching to the STABLE vision model to ensure it works. You can change this back to 4.1 if you are sure it exists.
+      messages: [
         {
           role: "system",
           content: systemPrompt
@@ -41,45 +44,48 @@ export async function POST(req: Request) {
         {
           role: "user",
           content: [
-            { type: "text", text: "Here is the product image. Write the listing description." },
-            ...(imageUrl ? [{
+            { type: "text", text: "Write the listing description based on this image." },
+            {
               type: "image_url",
               image_url: { url: imageUrl }
-            }] : [])
+            }
           ]
         }
-    ];
+      ]
+    };
 
-    // Standard Fetch Request
+    // 3. Send Request
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://glowseller.com", 
+        "HTTP-Referer": "https://glowseller.com",
         "X-Title": "GlowSeller",
       },
-      body: JSON.stringify({
-        model: "x-ai/grok-4.1-fast", // Keeping your model choice
-        messages: messages
-      })
+      body: JSON.stringify(payload)
     });
 
+    // 4. Handle Specific API Errors
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenRouter API Error:", errorText);
-        throw new Error(`OpenRouter Error: ${response.status} ${errorText}`);
+        const errorBody = await response.text();
+        console.error("OpenRouter API Error:", response.status, errorBody);
+        
+        // Return the ACTUAL error from OpenRouter so we can see it in the UI
+        return NextResponse.json({ error: `Provider Error (${response.status}): ${errorBody}` }, { status: response.status });
     }
 
     const data = await response.json();
-    const output = data.choices[0]?.message?.content || "";
+    const output = data.choices?.[0]?.message?.content;
 
-    if (!output) throw new Error("No output from AI");
+    if (!output) {
+        return NextResponse.json({ error: "AI returned empty response." }, { status: 500 });
+    }
 
     return NextResponse.json(output);
 
-  } catch (error) {
-    console.error("Generation Failed:", error);
-    return NextResponse.json("Failed to generate description. Check Vercel Logs.", { status: 500 });
+  } catch (error: any) {
+    console.error("Server Error:", error);
+    return NextResponse.json({ error: `Server Error: ${error.message}` }, { status: 500 });
   }
 }
