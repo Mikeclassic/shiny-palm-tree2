@@ -1,139 +1,132 @@
-"use client";
-import { useState } from "react";
-import { Wand2, Image as ImageIcon, Loader2, Copy } from "lucide-react";
+import { db } from "@/lib/db";
+import { Database, Search, Filter, ChevronLeft, ChevronRight, X } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import ProductGrid from "@/components/ProductGrid";
 
-export default function AITools() {
-  const [productName, setProductName] = useState("");
-  const [descResult, setDescResult] = useState("");
-  const [loading, setLoading] = useState(false);
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-  const [imageUrl, setImageUrl] = useState("");
-  const [bgResult, setBgResult] = useState("");
-  const [bgLoading, setBgLoading] = useState(false);
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: { q?: string; page?: string; aesthetic?: string };
+}) {
+  const query = searchParams.q || "";
+  const page = Number(searchParams.page) || 1;
+  const aesthetic = searchParams.aesthetic || "";
+  const pageSize = 24;
 
-  const generateDescription = async () => {
-    if(!productName) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        body: JSON.stringify({ productName }),
-      });
-      const data = await res.json();
-      setDescResult(data);
-    } catch (e) {
-      alert("Error generating description");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const where: any = {};
+  if (query) {
+    where.title = { contains: query, mode: 'insensitive' };
+  }
+  if (aesthetic && aesthetic !== "All") {
+    where.aesthetic = aesthetic;
+  }
 
-  const removeBackground = async () => {
-    if(!imageUrl) return;
-    setBgLoading(true);
-    try {
-      const res = await fetch("/api/ai/remove-bg", {
-        method: "POST",
-        body: JSON.stringify({ imageUrl }),
-      });
-      const data = await res.json();
-      if(data.output) setBgResult(data.output);
-      else alert("Failed to process image");
-    } catch (e) {
-      alert("Error processing image");
-    } finally {
-      setBgLoading(false);
-    }
-  };
+  const totalCount = await db.product.count({ where });
+  const products = await db.product.findMany({
+    where,
+    take: pageSize,
+    skip: (page - 1) * pageSize,
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  async function searchAction(formData: FormData) {
+    "use server";
+    const q = formData.get("q");
+    const aesthetic = formData.get("aesthetic");
+    redirect(`/dashboard?q=${q}&aesthetic=${aesthetic}&page=1`);
+  }
 
   return (
     <div className="space-y-8">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-800 pb-8">
         <div>
-            <h2 className="text-3xl font-bold">AI Studio ✨</h2>
-            <p className="text-gray-400 mt-2">Generate content and edit photos instantly.</p>
+            <h2 className="text-3xl font-bold">Winning Products 🔥</h2>
+            <p className="text-gray-400 mt-2">Curated high-margin items from 100+ top stores.</p>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Description Gen */}
-            <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-32 bg-purple-600/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 bg-purple-500/10 rounded-lg text-purple-400">
-                        <Wand2 size={24} />
-                    </div>
-                    <h3 className="font-bold text-xl">Description Writer</h3>
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-2 block">Product Name</label>
-                        <input 
-                            value={productName}
-                            onChange={(e) => setProductName(e.target.value)}
-                            placeholder="e.g. Vintage Nike Sweatshirt"
-                            className="w-full bg-black border border-gray-800 p-4 rounded-xl text-white focus:ring-2 ring-purple-500 outline-none transition"
-                        />
-                    </div>
-                    <button 
-                        onClick={generateDescription}
-                        disabled={loading}
-                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : "Generate Magic"}
-                    </button>
-                </div>
-
-                {descResult && (
-                <div className="mt-6 p-4 bg-black/50 border border-gray-800 rounded-xl">
-                    <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">{descResult}</p>
-                    <button 
-                        onClick={() => navigator.clipboard.writeText(descResult)}
-                        className="mt-3 flex items-center gap-2 text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider"
-                    >
-                        <Copy size={12} /> Copy Text
-                    </button>
-                </div>
-                )}
+        
+        <div className="bg-gray-900 border border-gray-700 p-4 rounded-xl flex items-center gap-4 shadow-lg shadow-black/50">
+            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
+                <Database size={24} />
             </div>
-
-            {/* BG Remover */}
-            <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-32 bg-pink-600/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 bg-pink-500/10 rounded-lg text-pink-400">
-                        <ImageIcon size={24} />
-                    </div>
-                    <h3 className="font-bold text-xl">Background Remover</h3>
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-2 block">Image URL</label>
-                        <input 
-                            value={imageUrl}
-                            onChange={(e) => setImageUrl(e.target.value)}
-                            placeholder="https://..."
-                            className="w-full bg-black border border-gray-800 p-4 rounded-xl text-white focus:ring-2 ring-pink-500 outline-none transition"
-                        />
-                    </div>
-                    <button 
-                        onClick={removeBackground}
-                        disabled={bgLoading}
-                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
-                    >
-                        {bgLoading ? <Loader2 className="animate-spin" /> : "Remove Background"}
-                    </button>
-                </div>
-
-                {bgResult && (
-                <div className="mt-6 border border-gray-800 rounded-xl overflow-hidden">
-                    <img src={bgResult} alt="Result" className="w-full" />
-                </div>
-                )}
+            <div>
+                <p className="text-xs text-gray-400 uppercase font-bold">Database Size</p>
+                <p className="text-xl font-mono text-white font-bold">
+                    {totalCount} <span className="text-gray-500 text-sm">items</span>
+                </p>
             </div>
         </div>
+      </div>
+
+      {/* SEARCH BAR */}
+      <form action={searchAction} className="bg-gray-900/50 p-4 rounded-2xl border border-gray-800 flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative">
+            <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
+            <input 
+                name="q" 
+                defaultValue={query}
+                placeholder="Search products..." 
+                className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+            />
+        </div>
+        
+        <div className="flex gap-4">
+            <div className="relative">
+                <Filter className="absolute left-4 top-3.5 text-gray-500" size={20} />
+                <select 
+                    name="aesthetic" 
+                    defaultValue={aesthetic}
+                    className="bg-black border border-gray-700 rounded-xl py-3 pl-12 pr-8 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none h-full cursor-pointer"
+                >
+                    <option value="">All Aesthetics</option>
+                    <option value="Trending 🔥">Trending 🔥</option>
+                    <option value="Y2K">Y2K</option>
+                </select>
+            </div>
+            
+            <button type="submit" className="bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-200 transition">
+                Search
+            </button>
+            
+            {(query || aesthetic) && (
+                <Link href="/dashboard" className="flex items-center justify-center bg-gray-800 text-gray-400 px-4 rounded-xl hover:bg-gray-700 hover:text-white transition">
+                    <X size={20} />
+                </Link>
+            )}
+        </div>
+      </form>
+
+      {/* THIS IS THE FIX: Using the interactive component instead of static mapping */}
+      <ProductGrid initialProducts={products} />
+
+      {/* PAGINATION */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 pt-8 border-t border-gray-800">
+            <Link 
+                href={page > 1 ? `/dashboard?page=${page - 1}&q=${query}&aesthetic=${aesthetic}` : '#'}
+                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page > 1 ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+            >
+                <ChevronLeft size={18} /> Previous
+            </Link>
+            
+            <span className="text-sm font-mono text-gray-500">
+                Page <span className="text-white">{page}</span> of {totalPages}
+            </span>
+
+            <Link 
+                href={page < totalPages ? `/dashboard?page=${page + 1}&q=${query}&aesthetic=${aesthetic}` : '#'}
+                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page < totalPages ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+            >
+                Next <ChevronRight size={18} />
+            </Link>
+        </div>
+      )}
     </div>
   );
 }
