@@ -1,11 +1,4 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// ... existing generator and datasource ...
 
 model User {
   id        String   @id @default(cuid())
@@ -33,8 +26,12 @@ model Product {
   gender         String?
   style          String?
 
-  // NEW: Supplier Hunter Fields
+  // Supplier Hunter Fields
   supplierUrl    String?
   supplierPrice  Float?
   lastSourced    DateTime?
+
+  // SPEED OPTIMIZATION: Add Indexing
+  @@index([lastSourced(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
