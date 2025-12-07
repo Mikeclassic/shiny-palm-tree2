@@ -13,7 +13,7 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Hunter (Working URL Logic + Google Cache Price)...");
+  console.log("🕵️ Starting Hunter (Consensus Protocol: Lens URL -> Search Page Price)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -31,7 +31,7 @@ async function main() {
     return;
   }
 
-  // 1. LAUNCH BROWSER
+  // 1. LAUNCH BROWSER (Standard Desktop)
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -51,6 +51,8 @@ async function main() {
     password: process.env.PROXY_PASSWORD
   });
 
+  // Standard User Agent (Best for Lens & Search Pages)
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1920, height: 1080 });
 
   for (const product of productsToHunt) {
@@ -58,16 +60,16 @@ async function main() {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
         // ============================================================
-        // STEP 1: URL EXTRACTION (EXACT WORKING LOGIC)
+        // STEP 1: URL EXTRACTION (PRESERVED - DO NOT TOUCH)
         // ============================================================
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Consent (Polish/German/English)
+        // Handle Consent (Polish/German/English/French)
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen')]");
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
             if (consentButton.length > 0) {
                 console.log("   🍪 Clicking Consent...");
                 await consentButton[0].click();
@@ -91,80 +93,80 @@ async function main() {
             continue;
         }
 
-        // ============================================================
-        // STEP 2: PRICE VIA GOOGLE CACHE (BYPASS ALIEXPRESS)
-        // ============================================================
-        
+        console.log(`   🔗 Found: ${foundLink}`);
+
         // Extract ID
         const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
         const itemId = idMatch ? idMatch[1] : null;
 
         if (!itemId) {
-            console.log("   ⚠️ Link found (ID missing). Saving link only.");
+            console.log("   ⚠️ Link found but no ID. Saving URL only.");
             await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
             continue;
         }
 
-        console.log(`   🔗 Found ID: ${itemId}`);
-        console.log("   🌎 Checking Google Cache for Price...");
-
-        // Search Google for the specific ID to see the price snippet
-        await page.goto(`https://www.google.com/search?q=site:aliexpress.com+${itemId}`, { waitUntil: 'domcontentloaded' });
+        // ============================================================
+        // STEP 2: SEARCH PAGE BYPASS (The Reddit Method)
+        // ============================================================
         
-        // Handle Consent AGAIN (because it's a new domain visit)
-        try {
-            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen')]");
-            if (consentButton.length > 0) {
-                await consentButton[0].click();
-                await randomSleep(2000, 3000);
-            }
-        } catch (err) {}
+        // A. FORCE COOKIE (Critical for Proxy Stability)
+        // This makes sure we get the Global site, not a broken local version
+        await page.setCookie({
+            name: 'aep_usuc_f',
+            value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
+            domain: '.aliexpress.com',
+            path: '/'
+        });
 
+        // B. VISIT SEARCH RESULT PAGE
+        // This page is much lighter and harder to block than the item page
+        const searchUrl = `https://www.aliexpress.com/wholesale?SearchText=${itemId}`;
+        console.log(`   🔎 Checking Search Page: ${searchUrl}`);
+        
+        await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 45000 });
         await randomSleep(2000, 4000);
 
+        // C. ROBUST EXTRACTION (Search Card)
         const priceFound = await page.evaluate(() => {
-            const text = document.body.innerText;
-            // Regex for various currencies (US $, zł, €)
-            // Matches: "US $12.34", "12,34 zł", "€ 12.34"
-            const patterns = [
-                /(?:US\s?\$|\$|€|£|zł)\s*(\d+([.,]\d+)?)/i,
-                /(\d+([.,]\d+)?)\s*(?:zł|€|£)/i
-            ];
+            // Try to find the specific price container in search results
+            // Classes often change, so we look for structure or symbols
+            
+            // 1. Look for text containing "US $" or "$" followed by digits
+            const bodyText = document.body.innerText;
+            const match = bodyText.match(/(?:US\s?\$|\$)\s?(\d+(\.\d+)?)/);
+            
+            if (match) return match[1];
 
-            for (const p of patterns) {
-                const match = text.match(p);
-                if (match) {
-                    // Extract the number part
-                    let raw = match[1] || match[0];
-                    // Clean non-numeric except dot/comma
-                    raw = raw.replace(/[^0-9.,]/g, '');
-                    return raw;
+            // 2. Fallback: Look for specific price classes if text search fails
+            const priceEls = document.querySelectorAll('[class*="price-"], [class*="Price-"]');
+            for (const el of priceEls) {
+                // Check if it looks like a price (contains numbers and symbol)
+                if (el.innerText.match(/\d/) && (el.innerText.includes('$') || el.innerText.includes('US'))) {
+                    return el.innerText.replace(/[^0-9.]/g, '');
                 }
             }
             return null;
         });
 
         if (priceFound) {
-            // Normalize European format (12,99 -> 12.99)
-            let cleanString = priceFound;
-            if (cleanString.includes(',') && !cleanString.includes('.')) {
-                cleanString = cleanString.replace(',', '.');
-            }
-            const priceVal = parseFloat(cleanString);
-
-            console.log(`   💰 Price Found on Google: ${priceVal}`);
+            const cleanPrice = parseFloat(priceFound);
+            console.log(`   💰 Price Found: $${cleanPrice}`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
                     supplierUrl: foundLink,
-                    supplierPrice: priceVal,
+                    supplierPrice: cleanPrice,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not found in Google Snippet. Saving URL only.");
+            // LOGGING THE PAGE TITLE AS REQUESTED
+            const title = await page.title();
+            console.log(`   ⚠️ Price not found. (Page Title: "${title}")`);
+            
+            // Save URL anyway
             await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
