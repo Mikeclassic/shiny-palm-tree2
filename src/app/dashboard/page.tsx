@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { Database, Search, ShoppingBag, Globe, AlertCircle } from "lucide-react";
+import { Database, Search, ShoppingBag, Globe, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ProductGrid from "@/components/ProductGrid";
@@ -10,10 +10,12 @@ export const revalidate = 0;
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: { q?: string; tab?: string };
+  searchParams: { q?: string; tab?: string; page?: string };
 }) {
   const query = searchParams.q || "";
   const tab = searchParams.tab || "all"; 
+  const page = Number(searchParams.page) || 1;
+  const pageSize = 24;
 
   const where: any = {};
   
@@ -23,10 +25,8 @@ export default async function Dashboard({
 
   // TAB LOGIC
   if (tab === "ali") {
-    // Show only products where we found a supplier
     where.supplierUrl = { not: null };
   } else if (tab === "other") {
-    // Show products where bot tried (lastSourced exists) but failed (supplierUrl null)
     where.supplierUrl = null;
     where.lastSourced = { not: null };
   }
@@ -34,14 +34,17 @@ export default async function Dashboard({
   const totalCount = await db.product.count({ where });
   const products = await db.product.findMany({
     where,
-    take: 50,
+    take: pageSize,
+    skip: (page - 1) * pageSize,
     orderBy: { createdAt: 'desc' }
   });
+
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   async function searchAction(formData: FormData) {
     "use server";
     const q = formData.get("q");
-    redirect(`/dashboard?q=${q}&tab=${tab}`);
+    redirect(`/dashboard?q=${q}&tab=${tab}&page=1`);
   }
 
   return (
@@ -78,19 +81,19 @@ export default async function Dashboard({
 
         <div className="flex gap-2 overflow-x-auto pb-2">
             <Link 
-                href={`/dashboard?q=${query}&tab=all`} 
+                href={`/dashboard?q=${query}&tab=all&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'all' ? 'bg-white text-black' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <ShoppingBag size={16} /> All Products
             </Link>
             <Link 
-                href={`/dashboard?q=${query}&tab=ali`} 
+                href={`/dashboard?q=${query}&tab=ali&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'ali' ? 'bg-green-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <Globe size={16} /> AliExpress Verified
             </Link>
             <Link 
-                href={`/dashboard?q=${query}&tab=other`} 
+                href={`/dashboard?q=${query}&tab=other&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'other' ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <AlertCircle size={16} /> Other Suppliers
@@ -99,6 +102,29 @@ export default async function Dashboard({
       </div>
 
       <ProductGrid initialProducts={products} />
+
+      {/* PAGINATION (FIXED) */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 pt-8 border-t border-gray-800">
+            <Link 
+                href={page > 1 ? `/dashboard?page=${page - 1}&q=${query}&tab=${tab}` : '#'}
+                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page > 1 ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+            >
+                <ChevronLeft size={18} /> Previous
+            </Link>
+            
+            <span className="text-sm font-mono text-gray-500">
+                Page <span className="text-white">{page}</span> of {totalPages}
+            </span>
+
+            <Link 
+                href={page < totalPages ? `/dashboard?page=${page + 1}&q=${query}&tab=${tab}` : '#'}
+                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page < totalPages ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+            >
+                Next <ChevronRight size={18} />
+            </Link>
+        </div>
+      )}
     </div>
   );
 }
