@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle } from "lucide-react"; 
+import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
@@ -39,11 +39,12 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                             </div>
                         )}
 
+                        {/* UPGRADED ACTION BUTTON */}
                         <button 
                             onClick={() => setSelectedProduct(product)}
-                            className="absolute bottom-3 right-3 bg-purple-600 hover:bg-purple-500 text-white p-2 rounded-full shadow-lg transform translate-y-12 group-hover:translate-y-0 transition duration-300 flex items-center gap-2 px-4 font-bold text-xs z-10"
+                            className="absolute bottom-3 right-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-[0_4px_15px_rgba(139,92,246,0.4)] transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs z-10"
                         >
-                            <Wand2 size={14} /> Magic List
+                            <Sparkles size={14} className="text-yellow-300 fill-yellow-300" /> Generate Listing
                         </button>
                     </div>
                     
