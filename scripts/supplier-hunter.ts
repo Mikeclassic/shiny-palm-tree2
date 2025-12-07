@@ -13,28 +13,30 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Supplier Hunter (URL Only Mode)...");
+  console.log("🕵️ Starting Supplier Hunter (Fresh Targets Only)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products without a supplier
+  // QUERY UPDATE: Only target products that have NEVER been checked
   const productsToHunt = await prisma.product.findMany({
-    where: { supplierUrl: null },
+    where: { 
+        supplierUrl: null,
+        lastSourced: null 
+    },
     take: 10, 
     orderBy: { createdAt: 'desc' }
   });
 
   if (productsToHunt.length === 0) {
-    console.log("✅ All products have suppliers!");
+    console.log("✅ No new products to hunt.");
     return;
   }
 
-  console.log(`🎯 Targeting ${productsToHunt.length} products...`);
+  console.log(`🎯 Targeting ${productsToHunt.length} new products...`);
 
-  // 1. LAUNCH BROWSER (Standard Desktop Configuration)
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -60,15 +62,12 @@ async function main() {
     try {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
-        // ============================================================
-        // STEP 1: GOOGLE LENS (The Working Logic)
-        // ============================================================
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // Handle Consent (Includes Polish/German/English/French)
+        // Handle Consent (Polish/German/English/French)
         try {
             const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
             if (consentButton.length > 0) {
@@ -80,24 +79,16 @@ async function main() {
 
         await randomSleep(3000, 6000); 
 
-        // Extract Link using the proven querySelector logic
         const foundLink = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
-            
             const productLinks = anchors
                 .map(a => a.href)
                 .filter(href => href && href.includes('aliexpress.com/item'));
-
-            // Return the first match
             return productLinks.length > 0 ? productLinks[0] : null;
         });
 
         if (foundLink) {
             console.log(`   🔗 Found: ${foundLink}`);
-
-            // ============================================================
-            // STEP 2: SAVE URL (Skip Price Check)
-            // ============================================================
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
@@ -108,7 +99,7 @@ async function main() {
             console.log("   ✅ Saved URL.");
         } else {
             console.log("   ❌ No AliExpress link found.");
-            // Mark as sourced so we don't retry immediately
+            // Mark as sourced so we don't retry
             await prisma.product.update({
                 where: { id: product.id },
                 data: { lastSourced: new Date() }
