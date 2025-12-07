@@ -13,14 +13,13 @@ const randomSleep = (min = 2000, max = 5000) => {
 };
 
 async function main() {
-  console.log("🕵️ Starting Hunter (Restored Polish URL Logic + Search Price)...");
+  console.log("🕵️ Starting Hunter (Working URL Logic + Google Cache Price)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find products without a supplier
   const productsToHunt = await prisma.product.findMany({
     where: { supplierUrl: null },
     take: 10, 
@@ -32,7 +31,7 @@ async function main() {
     return;
   }
 
-  // 1. LAUNCH BROWSER (Using the exact config that worked)
+  // 1. LAUNCH BROWSER
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -59,20 +58,19 @@ async function main() {
         console.log(`\n🔍 Hunting: ${product.title}`);
 
         // ============================================================
-        // STEP 1: EXACT RESTORED URL LOGIC (DO NOT TOUCH)
+        // STEP 1: URL EXTRACTION (EXACT WORKING LOGIC)
         // ============================================================
         const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=aliexpress`;
         
         console.log("   📸 Visiting Lens Multisearch...");
         await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
         
-        // POLISH/GERMAN CONSENT HANDLER (From the working version)
+        // Handle Consent (Polish/German/English)
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam')]");
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen')]");
             if (consentButton.length > 0) {
                 console.log("   🍪 Clicking Consent...");
                 await consentButton[0].click();
-                // Critical Wait that was missing in the last attempt
                 await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
             }
         } catch (err) {}
@@ -94,69 +92,79 @@ async function main() {
         }
 
         // ============================================================
-        // STEP 2: SAFE PRICE EXTRACTION (Cookie + Search Result)
+        // STEP 2: PRICE VIA GOOGLE CACHE (BYPASS ALIEXPRESS)
         // ============================================================
         
-        // Extract ID from the found link
+        // Extract ID
         const idMatch = foundLink.match(/\/item\/(\d+)\.html/);
         const itemId = idMatch ? idMatch[1] : null;
 
         if (!itemId) {
-            console.log("   ⚠️ Link found but no ID. Skipping price check.");
-            // Still save the URL because we found it!
+            console.log("   ⚠️ Link found (ID missing). Saving link only.");
             await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
             continue;
         }
 
         console.log(`   🔗 Found ID: ${itemId}`);
+        console.log("   🌎 Checking Google Cache for Price...");
 
-        // 1. Set Global Cookie (Prevents "Slide to Verify" redirect loop)
-        const cookie = {
-            name: 'aep_usuc_f',
-            value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
-            domain: '.aliexpress.com',
-            path: '/',
-            secure: true,
-        };
-        await page.setCookie(cookie);
-
-        // 2. Go to Search Page (Lighter than Product Page)
-        const searchUrl = `https://www.aliexpress.com/wholesale?SearchText=${itemId}`;
+        // Search Google for the specific ID to see the price snippet
+        await page.goto(`https://www.google.com/search?q=site:aliexpress.com+${itemId}`, { waitUntil: 'domcontentloaded' });
         
-        await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 45000 });
+        // Handle Consent AGAIN (because it's a new domain visit)
+        try {
+            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen')]");
+            if (consentButton.length > 0) {
+                await consentButton[0].click();
+                await randomSleep(2000, 3000);
+            }
+        } catch (err) {}
+
         await randomSleep(2000, 4000);
 
-        // 3. Extract Price from Search Result Card
-        const priceData = await page.evaluate(() => {
-            // Find the first element that looks like a price with a $ sign
-            // Search pages usually use specific classes like "multi--price-sale--"
-            const allDivs = Array.from(document.querySelectorAll('div'));
-            
-            for (const div of allDivs) {
-                const text = div.innerText;
-                // Strict check for "US $12.34" format which appears on Global English site
-                if (text.includes('$') && /\d+\.\d+/.test(text) && text.length < 20) {
-                    return text.replace(/[^0-9.]/g, '');
+        const priceFound = await page.evaluate(() => {
+            const text = document.body.innerText;
+            // Regex for various currencies (US $, zł, €)
+            // Matches: "US $12.34", "12,34 zł", "€ 12.34"
+            const patterns = [
+                /(?:US\s?\$|\$|€|£|zł)\s*(\d+([.,]\d+)?)/i,
+                /(\d+([.,]\d+)?)\s*(?:zł|€|£)/i
+            ];
+
+            for (const p of patterns) {
+                const match = text.match(p);
+                if (match) {
+                    // Extract the number part
+                    let raw = match[1] || match[0];
+                    // Clean non-numeric except dot/comma
+                    raw = raw.replace(/[^0-9.,]/g, '');
+                    return raw;
                 }
             }
             return null;
         });
 
-        if (priceData) {
-            const cleanPrice = parseFloat(priceData);
-            console.log(`   💰 Price Found: $${cleanPrice}`);
+        if (priceFound) {
+            // Normalize European format (12,99 -> 12.99)
+            let cleanString = priceFound;
+            if (cleanString.includes(',') && !cleanString.includes('.')) {
+                cleanString = cleanString.replace(',', '.');
+            }
+            const priceVal = parseFloat(cleanString);
+
+            console.log(`   💰 Price Found on Google: ${priceVal}`);
 
             await prisma.product.update({
                 where: { id: product.id },
                 data: {
                     supplierUrl: foundLink,
-                    supplierPrice: cleanPrice,
+                    supplierPrice: priceVal,
                     lastSourced: new Date()
                 }
             });
             console.log("   ✅ Saved.");
         } else {
-            console.log("   ⚠️ Price not found on search page (saving URL only).");
+            console.log("   ⚠️ Price not found in Google Snippet. Saving URL only.");
             await prisma.product.update({ where: { id: product.id }, data: { supplierUrl: foundLink, lastSourced: new Date() }});
         }
 
