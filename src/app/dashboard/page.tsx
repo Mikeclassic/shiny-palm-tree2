@@ -33,14 +33,14 @@ export default async function Dashboard({
 
   const totalCount = await db.product.count({ where });
   
-  // SORT LOGIC: Newly updated/sourced items appear first
+  // SORTING APPLIED TO ALL TABS
   const products = await db.product.findMany({
     where,
     take: pageSize,
     skip: (page - 1) * pageSize,
     orderBy: [
-        { lastSourced: 'desc' }, // 1. Recently checked by bot
-        { createdAt: 'desc' }    // 2. Newest added to DB
+        { lastSourced: 'desc' }, // 1. Items the bot just checked (Success or Fail) appear first
+        { createdAt: 'desc' }    // 2. Then new items
     ]
   });
 
