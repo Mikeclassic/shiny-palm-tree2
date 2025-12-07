@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Wand2, ExternalLink, Loader2, Eye } from "lucide-react"; 
+import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
@@ -69,8 +69,8 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                                     <ExternalLink size={14} /> View Supplier Stock 📦
                                 </a>
                             ) : botChecked ? (
-                                <div className="flex items-center justify-center gap-2 bg-red-900/30 text-red-400 py-2.5 rounded-xl text-xs font-bold border border-red-900/50 w-full">
-                                    <Search size={14} /> Bot found no match
+                                <div className="flex items-center justify-center gap-2 bg-orange-950/30 text-orange-400 py-2.5 rounded-xl text-xs font-bold border border-orange-900/50 w-full cursor-help" title="The bot could not find a match. This item might be rare or unique.">
+                                    <AlertCircle size={14} /> Rare / Unmatched
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-2 bg-gray-800 text-gray-500 py-2.5 rounded-xl text-xs font-bold border border-gray-700 cursor-wait w-full">
@@ -94,7 +94,7 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800"
                                 >
-                                    <Eye size={12} /> Spy Source
+                                    <Eye size={12} /> Spy Competitor
                                 </a>
                             </div>
                         </div>
