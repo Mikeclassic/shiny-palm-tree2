@@ -33,14 +33,17 @@ export default async function Dashboard({
 
   const totalCount = await db.product.count({ where });
   
-  // SORTING APPLIED TO ALL TABS
+  // SORTING FIX: 
+  // 1. lastSourced DESC (Newest checks first)
+  // 2. nulls: 'last' (Push "Bot Hunting..." items to the bottom)
+  // 3. createdAt DESC (Secondary sort for the waiting items)
   const products = await db.product.findMany({
     where,
     take: pageSize,
     skip: (page - 1) * pageSize,
     orderBy: [
-        { lastSourced: 'desc' }, // 1. Items the bot just checked (Success or Fail) appear first
-        { createdAt: 'desc' }    // 2. Then new items
+        { lastSourced: { sort: 'desc', nulls: 'last' } }, 
+        { createdAt: 'desc' }    
     ]
   });
 
