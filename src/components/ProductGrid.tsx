@@ -52,46 +52,49 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                             {product.title}
                         </h3>
                         
-                        <div className="mt-auto pt-4 border-t border-gray-800">
-                            <div className="flex justify-between items-center mb-4">
+                        <div className="mt-auto pt-4 border-t border-gray-800 space-y-3">
+                            <div className="flex justify-between items-center">
                                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Resell Price</span>
                                 <span className="text-xl font-mono text-white">${product.price}</span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
-                                {/* PRIMARY ACTION: SUPPLIER */}
-                                {hasSupplier ? (
-                                    <a 
-                                        href={product.supplierUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="col-span-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-[10px] font-bold transition shadow-lg shadow-green-900/20 px-2 text-center"
-                                    >
-                                        <ExternalLink size={12} /> View Stock 📦
-                                    </a>
-                                ) : botChecked ? (
-                                    <a 
-                                        href={manualLensUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
-                                    >
-                                        <Search size={12} /> Deep Search 🔎
-                                    </a>
-                                ) : (
-                                    <div className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 text-gray-500 py-2.5 rounded-xl text-[10px] font-bold border border-gray-800 cursor-wait px-2 text-center">
-                                        <Loader2 size={12} className="animate-spin" /> AI Hunting...
-                                    </div>
-                                )}
+                            {/* PRIMARY STATUS BUTTON */}
+                            {hasSupplier ? (
+                                <a 
+                                    href={product.supplierUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-green-900/20 w-full"
+                                >
+                                    <ExternalLink size={14} /> View Supplier Stock 📦
+                                </a>
+                            ) : botChecked ? (
+                                <div className="flex items-center justify-center gap-2 bg-red-900/30 text-red-400 py-2.5 rounded-xl text-xs font-bold border border-red-900/50 w-full">
+                                    <Search size={14} /> Bot found no match
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center gap-2 bg-gray-800 text-gray-500 py-2.5 rounded-xl text-xs font-bold border border-gray-700 cursor-wait w-full">
+                                    <Loader2 size={14} className="animate-spin" /> Bot Hunting...
+                                </div>
+                            )}
 
-                                {/* SECONDARY ACTION: SPY */}
+                            {/* SECONDARY TOOLS GRID */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <a 
+                                    href={manualLensUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800"
+                                >
+                                    <Search size={12} /> Deep Search 🔎
+                                </a>
                                 <a 
                                     href={product.sourceUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
+                                    className="flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800"
                                 >
-                                    <Eye size={12} /> Spy Competitor
+                                    <Eye size={12} /> Spy Source
                                 </a>
                             </div>
                         </div>
