@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Wand2, ExternalLink, Loader2 } from "lucide-react"; 
+import { Search, Wand2, ExternalLink, Loader2, Eye } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
@@ -59,29 +59,40 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
+                                {/* PRIMARY ACTION: SUPPLIER */}
                                 {hasSupplier ? (
                                     <a 
                                         href={product.supplierUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="col-span-2 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl text-xs font-bold transition shadow-lg shadow-green-900/20"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-[10px] font-bold transition shadow-lg shadow-green-900/20 px-2 text-center"
                                     >
-                                        <ExternalLink size={14} /> View Supplier Stock 📦
+                                        <ExternalLink size={12} /> View Stock 📦
                                     </a>
                                 ) : botChecked ? (
                                     <a 
                                         href={manualLensUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="col-span-2 flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-orange-400 py-3 rounded-xl text-xs font-bold transition border border-gray-700"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
                                     >
-                                        <Search size={14} /> Find Manually 🔎
+                                        <Search size={12} /> Deep Search 🔎
                                     </a>
                                 ) : (
-                                    <div className="col-span-2 flex items-center justify-center gap-2 bg-gray-900 text-gray-500 py-3 rounded-xl text-xs font-bold border border-gray-800 cursor-wait">
-                                        <Loader2 size={14} className="animate-spin" /> Queued for Bot ⏳
+                                    <div className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 text-gray-500 py-2.5 rounded-xl text-[10px] font-bold border border-gray-800 cursor-wait px-2 text-center">
+                                        <Loader2 size={12} className="animate-spin" /> AI Hunting...
                                     </div>
                                 )}
+
+                                {/* SECONDARY ACTION: SPY */}
+                                <a 
+                                    href={product.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
+                                >
+                                    <Eye size={12} /> Spy Competitor
+                                </a>
                             </div>
                         </div>
                     </div>
