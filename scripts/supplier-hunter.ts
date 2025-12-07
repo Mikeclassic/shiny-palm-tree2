@@ -7,10 +7,13 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-const randomSleep = (min = 2000, max = 5000) => {
+// Increased delays to mimic human research speed
+const randomSleep = (min = 4000, max = 8000) => {
   const ms = Math.floor(Math.random() * (max - min + 1) + min);
   return new Promise(resolve => setTimeout(resolve, ms));
 };
+
+const BATCH_SIZE = 5; // Process 5 items, then restart browser
 
 // --- KEYWORD OVERLAP LOGIC ---
 const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
@@ -47,50 +50,25 @@ const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
 };
 
 async function main() {
-  console.log("🔄 Starting FULL DATABASE AUDIT (Redoing Everything)...");
+  console.log("🛡️ Starting Safe Auditor (Browser Recycling Mode)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // 1. LAUNCH BROWSER
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled',
-        '--window-size=1920,1080',
-        `--proxy-server=http://${process.env.PROXY_SERVER}`
-    ]
-  });
-
-  const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(60000); 
-  
-  await page.authenticate({
-    username: process.env.PROXY_USERNAME,
-    password: process.env.PROXY_PASSWORD
-  });
-
-  await page.setViewport({ width: 1920, height: 1080 });
-
-  // 2. CAPTURE START TIME
-  // We use this to know when we have looped through the whole DB
+  // CAPTURE START TIME for the loop
   const scriptStartTime = new Date();
-  let processedCount = 0;
+  let totalProcessed = 0;
 
-  console.log("🕒 Batching through the entire database...");
-
+  // INFINITE LOOP (Until DB is done)
   while (true) {
-      // 3. FETCH BATCH (Smart Sort)
-      // nulls: 'first' -> Ensures we do NEW products before fixing OLD ones
-      // lastSourced: 'asc' -> Ensures we fix the oldest checked items first
+      
+      // 1. FETCH BATCH
+      // We assume anything checked AFTER scriptStartTime is "done" for this run.
       const productsBatch = await prisma.product.findMany({
-        take: 5, 
+        take: BATCH_SIZE, 
         where: {
-            // Only pick items that haven't been touched IN THIS RUN yet
             OR: [
                 { lastSourced: null },
                 { lastSourced: { lt: scriptStartTime } }
@@ -102,31 +80,58 @@ async function main() {
       });
 
       if (productsBatch.length === 0) {
-          console.log("✅ All products processed in this run.");
+          console.log("✅ All products processed. Exiting.");
           break;
       }
 
-      for (const product of productsBatch) {
-        processedCount++;
-        try {
-            console.log(`\n[${processedCount}] Audit: ${product.title}`);
+      console.log(`\n🔄 Launching Fresh Browser Session for ${productsBatch.length} items...`);
 
-            // STEP 1: VISUAL SEARCH (Enhanced Query)
+      // 2. LAUNCH FRESH BROWSER FOR THIS BATCH
+      const browser = await puppeteer.launch({
+        headless: "new",
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--window-size=1920,1080',
+            `--proxy-server=http://${process.env.PROXY_SERVER}`
+        ]
+      });
+
+      const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(60000); 
+      
+      await page.authenticate({
+        username: process.env.PROXY_USERNAME,
+        password: process.env.PROXY_PASSWORD
+      });
+
+      await page.setViewport({ width: 1920, height: 1080 });
+
+      // 3. PROCESS BATCH
+      for (const product of productsBatch) {
+        totalProcessed++;
+        try {
+            console.log(`\n[${totalProcessed}] Audit: ${product.title}`);
+
+            // STEP 1: VISUAL SEARCH
+            // Using specific site query to help Google Lens focus
             const query = `site:aliexpress.com ${product.title}`;
             const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
             
             await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
             
-            // Consent Handler
+            // Consent Handler (Multi-Language)
             try {
                 const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
                 if (consentButton.length > 0) {
                     await consentButton[0].click();
+                    // Wait slightly longer after consent to behave human-like
                     await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
                 }
             } catch (err) {}
 
-            await randomSleep(2000, 5000); 
+            await randomSleep(3000, 6000); // Slower pacing
 
             // STEP 2: LINK EXTRACTION
             const result = await page.evaluate(() => {
@@ -143,7 +148,7 @@ async function main() {
                 return null;
             });
 
-            // STEP 3: VERIFICATION
+            // STEP 3: VERIFICATION & SAVE
             if (result) {
                 const check = checkTitleMatch(product.title, result.title);
 
@@ -155,7 +160,7 @@ async function main() {
                         where: { id: product.id },
                         data: {
                             supplierUrl: result.href,
-                            lastSourced: new Date() // Updates timestamp so it won't be picked again this run
+                            lastSourced: new Date()
                         }
                     });
                 } else {
@@ -163,7 +168,7 @@ async function main() {
                     await prisma.product.update({
                         where: { id: product.id },
                         data: { 
-                            supplierUrl: null, // Wipe bad data
+                            supplierUrl: null, 
                             lastSourced: new Date() 
                         }
                     });
@@ -182,9 +187,16 @@ async function main() {
             console.error(`   ❌ Error: ${e.message}`);
         }
       }
+
+      // 4. CLOSE BROWSER & COOL DOWN
+      // This is the key: We kill the browser to clear all Google tracking cookies
+      console.log("💤 Cooling down for 15 seconds to protect proxy...");
+      await browser.close();
+      
+      // Force a hard pause before opening the next browser
+      await new Promise(resolve => setTimeout(resolve, 15000));
   }
 
-  await browser.close();
   await prisma.$disconnect();
   console.log("\n🏁 Full Database Audit Complete.");
 }
