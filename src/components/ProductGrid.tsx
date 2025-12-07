@@ -22,7 +22,10 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
             {initialProducts.map((product) => {
                 const hasSupplier = !!product.supplierUrl;
                 const botChecked = !!product.lastSourced;
-                const manualLensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
+                
+                // ENHANCED LENS URL: Image + Specific Text Query
+                const query = `site:aliexpress.com ${product.title}`;
+                const manualLensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
 
                 return (
                 <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col relative">
@@ -39,7 +42,6 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                             </div>
                         )}
 
-                        {/* UPGRADED ACTION BUTTON */}
                         <button 
                             onClick={() => setSelectedProduct(product)}
                             className="absolute bottom-3 right-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-[0_4px_15px_rgba(139,92,246,0.4)] transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs z-10"
