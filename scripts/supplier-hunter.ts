@@ -14,7 +14,6 @@ const randomSleep = (min = 2000, max = 5000) => {
 
 // --- KEYWORD OVERLAP LOGIC ---
 const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
-    // 1. Common "Stop Words" to ignore (English/German/French/Polish common)
     const stopWords = [
         'the', 'a', 'an', 'and', 'or', 'for', 'of', 'in', 'with', 'to', 'at', 
         'men', 'mens', 'women', 'womens', 'new', 'hot', 'sale', 'fashion', 
@@ -23,60 +22,39 @@ const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
         'i', 'w', 'z', 'dla', 'na'          // Polish
     ];
 
-    // 2. Cleaning Function
     const clean = (str: string) => {
         return str.toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
-            .split(/\s+/) // Split by space
-            .filter(w => w.length > 2 && !stopWords.includes(w)); // Remove short/stop words
+            .replace(/[^a-z0-9\s]/g, '') 
+            .split(/\s+/) 
+            .filter(w => w.length > 2 && !stopWords.includes(w)); 
     };
 
     const originalWords = clean(originalTitle);
     const foundWords = clean(foundTitle);
 
-    // 3. Comparison
-    // If original has no unique keywords, we skip filtering (safety net)
     if (originalWords.length === 0) return { match: true, reason: "No keywords to check" };
 
-    // Find intersection
     const matchingWords = originalWords.filter(w => foundWords.includes(w));
 
-    // 4. Threshold: At least 1 keyword must match
     if (matchingWords.length > 0) {
         return { match: true, reason: `Matched keywords: [${matchingWords.join(', ')}]` };
     }
 
     return { 
         match: false, 
-        reason: `Mismatch. Expected keywords: [${originalWords.join(', ')}] vs Found: [${foundWords.slice(0, 5).join(', ')}...]` 
+        reason: `Mismatch. Expected: [${originalWords.join(', ')}] vs Found: [${foundWords.slice(0, 5).join(', ')}...]` 
     };
 };
 
 async function main() {
-  console.log("🕵️ Starting Hunter (URL + Keyword Verification)...");
+  console.log("🔄 Starting FULL DATABASE AUDIT (Redoing Everything)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // Find fresh products only
-  const productsToHunt = await prisma.product.findMany({
-    where: { 
-        supplierUrl: null,
-        lastSourced: null 
-    },
-    take: 10, 
-    orderBy: { createdAt: 'desc' }
-  });
-
-  if (productsToHunt.length === 0) {
-    console.log("✅ No new products to hunt.");
-    return;
-  }
-
-  console.log(`🎯 Targeting ${productsToHunt.length} new products...`);
-
+  // 1. LAUNCH BROWSER
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -98,95 +76,117 @@ async function main() {
 
   await page.setViewport({ width: 1920, height: 1080 });
 
-  for (const product of productsToHunt) {
-    try {
-        console.log(`\n🔍 Hunting: ${product.title}`);
+  // 2. CAPTURE START TIME
+  // We use this to know when we have looped through the whole DB
+  const scriptStartTime = new Date();
+  let processedCount = 0;
 
-        // ============================================================
-        // STEP 1: VISUAL SEARCH
-        // ============================================================
-        // Note: We use specific text query to help the visual search context
-        const query = `site:aliexpress.com ${product.title}`;
-        const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
-        
-        console.log("   📸 Visiting Lens Multisearch...");
-        await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
-        
-        // Consent Handler
+  console.log("🕒 Batching through the entire database...");
+
+  while (true) {
+      // 3. FETCH BATCH (Smart Sort)
+      // nulls: 'first' -> Ensures we do NEW products before fixing OLD ones
+      // lastSourced: 'asc' -> Ensures we fix the oldest checked items first
+      const productsBatch = await prisma.product.findMany({
+        take: 5, 
+        where: {
+            // Only pick items that haven't been touched IN THIS RUN yet
+            OR: [
+                { lastSourced: null },
+                { lastSourced: { lt: scriptStartTime } }
+            ]
+        },
+        orderBy: {
+            lastSourced: { sort: 'asc', nulls: 'first' }
+        }
+      });
+
+      if (productsBatch.length === 0) {
+          console.log("✅ All products processed in this run.");
+          break;
+      }
+
+      for (const product of productsBatch) {
+        processedCount++;
         try {
-            const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
-            if (consentButton.length > 0) {
-                console.log("   🍪 Clicking Consent...");
-                await consentButton[0].click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
-            }
-        } catch (err) {}
+            console.log(`\n[${processedCount}] Audit: ${product.title}`);
 
-        await randomSleep(3000, 6000); 
-
-        // ============================================================
-        // STEP 2: EXTRACTION WITH TEXT
-        // ============================================================
-        const result = await page.evaluate(() => {
-            const anchors = Array.from(document.querySelectorAll('a'));
-            // Find links that go to aliexpress items
-            const hits = anchors.filter(a => a.href && a.href.includes('aliexpress.com/item'));
+            // STEP 1: VISUAL SEARCH (Enhanced Query)
+            const query = `site:aliexpress.com ${product.title}`;
+            const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
             
-            if (hits.length > 0) {
-                const best = hits[0]; // Take top result
-                return {
-                    href: best.href,
-                    // Grab text from inside the link, or aria-label, or title attribute
-                    title: best.innerText || best.getAttribute('aria-label') || best.title || ""
-                };
-            }
-            return null;
-        });
+            await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
+            
+            // Consent Handler
+            try {
+                const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
+                if (consentButton.length > 0) {
+                    await consentButton[0].click();
+                    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
+                }
+            } catch (err) {}
 
-        if (result) {
-            // ============================================================
-            // STEP 3: KEYWORD VERIFICATION
-            // ============================================================
-            const check = checkTitleMatch(product.title, result.title);
+            await randomSleep(2000, 5000); 
 
-            if (check.match) {
-                console.log(`   🔗 Found: ${result.href}`);
-                console.log(`   ✅ Verified: ${check.reason}`);
+            // STEP 2: LINK EXTRACTION
+            const result = await page.evaluate(() => {
+                const anchors = Array.from(document.querySelectorAll('a'));
+                const hits = anchors.filter(a => a.href && a.href.includes('aliexpress.com/item'));
                 
+                if (hits.length > 0) {
+                    const best = hits[0];
+                    return {
+                        href: best.href,
+                        title: best.innerText || best.getAttribute('aria-label') || best.title || ""
+                    };
+                }
+                return null;
+            });
+
+            // STEP 3: VERIFICATION
+            if (result) {
+                const check = checkTitleMatch(product.title, result.title);
+
+                if (check.match) {
+                    console.log(`   🔗 Link Found: ${result.href}`);
+                    console.log(`   ✅ Verified: ${check.reason}`);
+                    
+                    await prisma.product.update({
+                        where: { id: product.id },
+                        data: {
+                            supplierUrl: result.href,
+                            lastSourced: new Date() // Updates timestamp so it won't be picked again this run
+                        }
+                    });
+                } else {
+                    console.log(`   ❌ Ditching Link: ${check.reason}`);
+                    await prisma.product.update({
+                        where: { id: product.id },
+                        data: { 
+                            supplierUrl: null, // Wipe bad data
+                            lastSourced: new Date() 
+                        }
+                    });
+                }
+            } else {
+                console.log("   ❌ No Link Found.");
                 await prisma.product.update({
                     where: { id: product.id },
-                    data: {
-                        supplierUrl: result.href,
-                        lastSourced: new Date()
+                    data: { 
+                        lastSourced: new Date() 
                     }
                 });
-            } else {
-                console.log(`   ❌ Ditching Link: ${check.reason}`);
-                console.log(`      (Found Title: "${result.title.substring(0, 50)}...")`);
-                
-                // Mark as sourced (but null URL) so we don't retry immediately
-                await prisma.product.update({
-                    where: { id: product.id },
-                    data: { lastSourced: new Date() }
-                });
             }
 
-        } else {
-            console.log("   ❌ No AliExpress link found.");
-            await prisma.product.update({
-                where: { id: product.id },
-                data: { lastSourced: new Date() }
-            });
+        } catch (e) {
+            console.error(`   ❌ Error: ${e.message}`);
         }
-
-    } catch (e) {
-        console.error(`   ❌ Error: ${e.message}`);
-    }
+      }
   }
 
   await browser.close();
   await prisma.$disconnect();
-  console.log("\n🏁 Hunt Complete.");
+  console.log("\n🏁 Full Database Audit Complete.");
 }
 
 main();
