@@ -7,22 +7,28 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-// Increased delays to mimic human research speed
-const randomSleep = (min = 4000, max = 8000) => {
+// List of modern User Agents to rotate identities
+const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+];
+
+const randomSleep = (min = 5000, max = 10000) => {
   const ms = Math.floor(Math.random() * (max - min + 1) + min);
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-const BATCH_SIZE = 5; // Process 5 items, then restart browser
+const BATCH_SIZE = 4; // Reduced batch size slightly for safety
 
 // --- KEYWORD OVERLAP LOGIC ---
 const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
     const stopWords = [
         'the', 'a', 'an', 'and', 'or', 'for', 'of', 'in', 'with', 'to', 'at', 
         'men', 'mens', 'women', 'womens', 'new', 'hot', 'sale', 'fashion', 
-        'der', 'die', 'und', 'für', 'mit', // German
-        'le', 'la', 'et', 'pour', 'avec',   // French
-        'i', 'w', 'z', 'dla', 'na'          // Polish
+        'der', 'die', 'und', 'für', 'mit', 'le', 'la', 'et', 'pour', 'avec', 'i', 'w', 'z', 'dla', 'na'          
     ];
 
     const clean = (str: string) => {
@@ -50,22 +56,29 @@ const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
 };
 
 async function main() {
-  console.log("🛡️ Starting Safe Auditor (Browser Recycling Mode)...");
+  console.log("🛡️ Starting Polymorphic Auditor (Anti-Ban Protocol)...");
 
   if (!process.env.PROXY_SERVER || !process.env.PROXY_USERNAME) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  // CAPTURE START TIME for the loop
   const scriptStartTime = new Date();
   let totalProcessed = 0;
+  let consecutiveFailures = 0;
 
-  // INFINITE LOOP (Until DB is done)
   while (true) {
-      
+      // 0. SMART COOLING LOGIC
+      // If we failed 3 times in a row, the IP is likely hot. Wait it out.
+      if (consecutiveFailures >= 3) {
+          console.log("\n🔥 High Failure Rate Detected (Soft Ban).");
+          console.log("🧊 Cooling down for 2 minutes to reset Google reputation...");
+          await new Promise(resolve => setTimeout(resolve, 120000)); // 2 minutes
+          consecutiveFailures = 0; // Reset counter
+          console.log("▶️ Resuming...");
+      }
+
       // 1. FETCH BATCH
-      // We assume anything checked AFTER scriptStartTime is "done" for this run.
       const productsBatch = await prisma.product.findMany({
         take: BATCH_SIZE, 
         where: {
@@ -84,9 +97,11 @@ async function main() {
           break;
       }
 
-      console.log(`\n🔄 Launching Fresh Browser Session for ${productsBatch.length} items...`);
+      // Pick a random identity for this session
+      const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+      console.log(`\n🎭 New Identity: ${randomUA.substring(0, 40)}...`);
 
-      // 2. LAUNCH FRESH BROWSER FOR THIS BATCH
+      // 2. LAUNCH BROWSER
       const browser = await puppeteer.launch({
         headless: "new",
         args: [
@@ -106,6 +121,8 @@ async function main() {
         password: process.env.PROXY_PASSWORD
       });
 
+      // Apply Random Identity
+      await page.setUserAgent(randomUA);
       await page.setViewport({ width: 1920, height: 1080 });
 
       // 3. PROCESS BATCH
@@ -114,26 +131,23 @@ async function main() {
         try {
             console.log(`\n[${totalProcessed}] Audit: ${product.title}`);
 
-            // STEP 1: VISUAL SEARCH
-            // Using specific site query to help Google Lens focus
             const query = `site:aliexpress.com ${product.title}`;
             const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
             
             await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
             
-            // Consent Handler (Multi-Language)
+            // Consent Handler
             try {
                 const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
                 if (consentButton.length > 0) {
                     await consentButton[0].click();
-                    // Wait slightly longer after consent to behave human-like
                     await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
                 }
             } catch (err) {}
 
-            await randomSleep(3000, 6000); // Slower pacing
+            await randomSleep(4000, 8000); // Increased safety delay
 
-            // STEP 2: LINK EXTRACTION
+            // Extraction
             const result = await page.evaluate(() => {
                 const anchors = Array.from(document.querySelectorAll('a'));
                 const hits = anchors.filter(a => a.href && a.href.includes('aliexpress.com/item'));
@@ -148,8 +162,11 @@ async function main() {
                 return null;
             });
 
-            // STEP 3: VERIFICATION & SAVE
+            // Verification
             if (result) {
+                // SUCCESS: Reset failure counter
+                consecutiveFailures = 0; 
+                
                 const check = checkTitleMatch(product.title, result.title);
 
                 if (check.match) {
@@ -175,6 +192,9 @@ async function main() {
                 }
             } else {
                 console.log("   ❌ No Link Found.");
+                // FAILURE: Increment counter
+                consecutiveFailures++;
+                
                 await prisma.product.update({
                     where: { id: product.id },
                     data: { 
@@ -185,16 +205,13 @@ async function main() {
 
         } catch (e) {
             console.error(`   ❌ Error: ${e.message}`);
+            consecutiveFailures++;
         }
       }
 
-      // 4. CLOSE BROWSER & COOL DOWN
-      // This is the key: We kill the browser to clear all Google tracking cookies
-      console.log("💤 Cooling down for 15 seconds to protect proxy...");
+      console.log("💤 Cooling down for 10s...");
       await browser.close();
-      
-      // Force a hard pause before opening the next browser
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, 10000));
   }
 
   await prisma.$disconnect();
