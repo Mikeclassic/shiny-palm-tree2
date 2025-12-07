@@ -32,11 +32,16 @@ export default async function Dashboard({
   }
 
   const totalCount = await db.product.count({ where });
+  
+  // SORT LOGIC: Newly updated/sourced items appear first
   const products = await db.product.findMany({
     where,
     take: pageSize,
     skip: (page - 1) * pageSize,
-    orderBy: { createdAt: 'desc' }
+    orderBy: [
+        { lastSourced: 'desc' }, // 1. Recently checked by bot
+        { createdAt: 'desc' }    // 2. Newest added to DB
+    ]
   });
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -103,7 +108,7 @@ export default async function Dashboard({
 
       <ProductGrid initialProducts={products} />
 
-      {/* PAGINATION (FIXED) */}
+      {/* PAGINATION */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 pt-8 border-t border-gray-800">
             <Link 
