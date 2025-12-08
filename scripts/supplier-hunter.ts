@@ -7,7 +7,7 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-// ROTATING IDENTITIES
+// ROTATING IDENTITIES (Same as Audit)
 const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -37,14 +37,13 @@ const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
 };
 
 async function main() {
-  console.log("🐢 Starting Deep Stealth Hunter (Auto-Resume Mode)...");
+  console.log("🏹 Starting Deep Stealth Hunter (New Products Only)...");
 
   if (!process.env.PROXY_SERVER) {
       console.error("❌ Error: Missing PROXY secrets.");
       process.exit(1);
   }
 
-  const scriptStartTime = new Date();
   let consecutiveFailures = 0;
   let totalProcessed = 0;
 
@@ -54,33 +53,30 @@ async function main() {
           console.log("\n🛑 High Block Rate detected (Soft Ban).");
           console.log("🧊 Pausing for 10 minutes to let Proxy cool down...");
           
-          // Wait 10 minutes (600,000 ms)
-          await new Promise(resolve => setTimeout(resolve, 600000));
+          await new Promise(resolve => setTimeout(resolve, 600000)); // 10 minutes
           
-          consecutiveFailures = 0; // Reset counter
+          consecutiveFailures = 0; 
           console.log("▶️ Resuming operations...");
       }
 
-      // FETCH 1 ITEM AT A TIME
+      // FETCH 1 NEW ITEM AT A TIME
+      // Query Change: strictly checks for 'lastSourced: null'
       const product = await prisma.product.findFirst({
         where: {
-            OR: [
-                { lastSourced: null },
-                { lastSourced: { lt: scriptStartTime } }
-            ]
+            lastSourced: null 
         },
-        orderBy: { lastSourced: { sort: 'asc', nulls: 'first' } }
+        orderBy: { createdAt: 'desc' } // Process newest products first
       });
 
       if (!product) {
-          console.log("✅ All products checked.");
+          console.log("✅ No new products to hunt. Sleeping until next schedule.");
           break;
       }
 
       totalProcessed++;
-      console.log(`\n[${totalProcessed}] Audit: ${product.title}`);
+      console.log(`\n[${totalProcessed}] Hunting: ${product.title}`);
 
-      // 1. LAUNCH FRESH BROWSER (Single Use)
+      // 1. LAUNCH FRESH BROWSER
       const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
       const browser = await puppeteer.launch({
         headless: "new",
@@ -100,7 +96,7 @@ async function main() {
           await page.setUserAgent(randomUA);
           await page.setViewport({ width: 1920, height: 1080 });
 
-          // 2. GOOGLE LENS
+          // 2. GOOGLE LENS (Text + Image Query)
           const query = `site:aliexpress.com ${product.title}`;
           const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
           
@@ -115,7 +111,6 @@ async function main() {
               }
           } catch (err) {}
 
-          // Wait for results to load
           await new Promise(resolve => setTimeout(resolve, 5000));
 
           // 3. EXTRACT
@@ -135,7 +130,7 @@ async function main() {
 
           // 4. VERIFY & SAVE
           if (result) {
-              consecutiveFailures = 0; // Success! Reset failures.
+              consecutiveFailures = 0; 
               const check = checkTitleMatch(product.title, result.title);
 
               if (check.match) {
@@ -154,8 +149,8 @@ async function main() {
                   });
               }
           } else {
-              console.log("   ❌ No Link Found (Possible Block or Not Found)");
-              consecutiveFailures++; // Failure. Increment counter.
+              console.log("   ❌ No Link Found.");
+              consecutiveFailures++;
               await prisma.product.update({
                   where: { id: product.id },
                   data: { lastSourced: new Date() }
