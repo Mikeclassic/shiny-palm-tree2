@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+// IMPORT NEXT IMAGE
+import Image from "next/image"; 
 import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
 
@@ -22,22 +24,23 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
             {initialProducts.map((product) => {
                 const hasSupplier = !!product.supplierUrl;
                 const botChecked = !!product.lastSourced;
-                
-                // ENHANCED LENS URL: Image + Specific Text Query
-                const query = `site:aliexpress.com ${product.title}`;
-                const manualLensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
+                const manualLensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
 
                 return (
-                <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col relative">
+                <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col relative h-full">
                     <div className="h-64 relative overflow-hidden bg-black">
-                        <img 
+                        {/* OPTIMIZED IMAGE COMPONENT */}
+                        <Image 
                             src={product.imageUrl} 
-                            alt={product.title} 
-                            className="w-full h-full object-cover group-hover:scale-110 transition duration-500" 
+                            alt={product.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-110 transition duration-500"
                             loading="lazy"
                         />
+                        
                         {product.aesthetic && (
-                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10">
+                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10 z-10">
                                 {product.aesthetic}
                             </div>
                         )}
@@ -50,6 +53,7 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                         </button>
                     </div>
                     
+                    {/* ... Rest of the component remains exactly the same ... */}
                     <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 leading-tight" title={product.title}>
                             {product.title}
@@ -61,41 +65,36 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                                 <span className="text-xl font-mono text-white">${product.price}</span>
                             </div>
 
-                            {/* PRIMARY STATUS BUTTON */}
-                            {hasSupplier ? (
-                                <a 
-                                    href={product.supplierUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-green-900/20 w-full"
-                                >
-                                    <ExternalLink size={14} /> View Supplier Stock 📦
-                                </a>
-                            ) : botChecked ? (
-                                <div className="flex items-center justify-center gap-2 bg-orange-950/30 text-orange-400 py-2.5 rounded-xl text-xs font-bold border border-orange-900/50 w-full cursor-help" title="The bot could not find a match. This item might be rare or unique.">
-                                    <AlertCircle size={14} /> Rare / Unmatched
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center gap-2 bg-gray-800 text-gray-500 py-2.5 rounded-xl text-xs font-bold border border-gray-700 cursor-wait w-full">
-                                    <Loader2 size={14} className="animate-spin" /> Bot Hunting...
-                                </div>
-                            )}
-
-                            {/* SECONDARY TOOLS GRID */}
                             <div className="grid grid-cols-2 gap-2">
-                                <a 
-                                    href={manualLensUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800"
-                                >
-                                    <Search size={12} /> Deep Search 🔎
-                                </a>
+                                {hasSupplier ? (
+                                    <a 
+                                        href={product.supplierUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-[10px] font-bold transition shadow-lg shadow-green-900/20 px-2 text-center"
+                                    >
+                                        <ExternalLink size={12} /> View Stock 📦
+                                    </a>
+                                ) : botChecked ? (
+                                    <a 
+                                        href={manualLensUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
+                                    >
+                                        <Search size={12} /> Deep Search 🔎
+                                    </a>
+                                ) : (
+                                    <div className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 text-gray-500 py-2.5 rounded-xl text-[10px] font-bold border border-gray-800 cursor-wait px-2 text-center">
+                                        <Loader2 size={12} className="animate-spin" /> AI Hunting...
+                                    </div>
+                                )}
+
                                 <a 
                                     href={product.sourceUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800"
+                                    className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800 px-2 text-center"
                                 >
                                     <Eye size={12} /> Spy Competitor
                                 </a>
