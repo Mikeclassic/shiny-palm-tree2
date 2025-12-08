@@ -7,7 +7,7 @@ puppeteer.use(StealthPlugin());
 
 const prisma = new PrismaClient();
 
-// ROTATING IDENTITIES (Same as Audit)
+// ROTATING IDENTITIES
 const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -15,7 +15,7 @@ const USER_AGENTS = [
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
 ];
 
-// HUMAN DELAY (15 to 30 Seconds)
+// HUMAN DELAY
 const longSleep = () => {
   const ms = Math.floor(Math.random() * (15000) + 15000); 
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -37,7 +37,7 @@ const checkTitleMatch = (originalTitle: string, foundTitle: string) => {
 };
 
 async function main() {
-  console.log("🏹 Starting Deep Stealth Hunter (New Products Only)...");
+  console.log("🏹 Starting Deep Stealth Hunter (Error-Proof Mode)...");
 
   if (!process.env.PROXY_SERVER) {
       console.error("❌ Error: Missing PROXY secrets.");
@@ -48,28 +48,23 @@ async function main() {
   let totalProcessed = 0;
 
   while (true) {
-      // CIRCUIT BREAKER: Pause if blocked 3 times in a row
+      // CIRCUIT BREAKER
       if (consecutiveFailures >= 3) {
           console.log("\n🛑 High Block Rate detected (Soft Ban).");
           console.log("🧊 Pausing for 10 minutes to let Proxy cool down...");
-          
-          await new Promise(resolve => setTimeout(resolve, 600000)); // 10 minutes
-          
+          await new Promise(resolve => setTimeout(resolve, 600000)); 
           consecutiveFailures = 0; 
           console.log("▶️ Resuming operations...");
       }
 
-      // FETCH 1 NEW ITEM AT A TIME
-      // Query Change: strictly checks for 'lastSourced: null'
+      // FETCH 1 NEW ITEM
       const product = await prisma.product.findFirst({
-        where: {
-            lastSourced: null 
-        },
-        orderBy: { createdAt: 'desc' } // Process newest products first
+        where: { lastSourced: null },
+        orderBy: { createdAt: 'desc' }
       });
 
       if (!product) {
-          console.log("✅ No new products to hunt. Sleeping until next schedule.");
+          console.log("✅ No new products to hunt.");
           break;
       }
 
@@ -96,13 +91,12 @@ async function main() {
           await page.setUserAgent(randomUA);
           await page.setViewport({ width: 1920, height: 1080 });
 
-          // 2. GOOGLE LENS (Text + Image Query)
+          // 2. GOOGLE LENS
           const query = `site:aliexpress.com ${product.title}`;
           const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
           
           await page.goto(lensUrl, { waitUntil: 'domcontentloaded' });
 
-          // Consent Handler
           try {
               const consentButton = await page.$x("//button[contains(., 'Reject') or contains(., 'I agree') or contains(., 'Odrzuć') or contains(., 'Zaakceptuj') or contains(., 'Zgadzam') or contains(., 'Alle ablehnen') or contains(., 'Tout refuser')]");
               if (consentButton.length > 0) {
@@ -160,6 +154,19 @@ async function main() {
       } catch (e) {
           console.error(`   ⚠️ Error: ${e.message}`);
           consecutiveFailures++;
+
+          // --- THE FIX IS HERE ---
+          // Even if the Proxy Crashes (Tunnel Error), we mark the item as "Checked"
+          // so the bot moves on to the next item instead of looping forever.
+          console.log("   ⏭️ Skipping item due to error...");
+          await prisma.product.update({
+              where: { id: product.id },
+              data: { 
+                  supplierUrl: null, // No link found (due to error)
+                  lastSourced: new Date() // Mark as checked
+              }
+          });
+
       } finally {
           await browser.close();
           console.log("   💤 Cooling down (15-30s)...");
