@@ -1,45 +1,13 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  email     String
-  credits   Int      @default(5)
-  isPro     Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
+// ... existing code ...
 
 model Product {
-  id          String   @id @default(cuid())
-  title       String
-  price       Float
-  imageUrl    String
-  sourceUrl   String   @unique
-  aesthetic   String?  @default("Y2K")
-  createdAt   DateTime @default(now())
-  
-  // AI Fields
-  generatedDesc  String?  @db.Text
-  generatedTags  String?  @db.Text
-  condition      String?
-  era            String?
-  gender         String?
-  style          String?
-
-  // Supplier Hunter Fields
+  // ... existing fields ...
   supplierUrl    String?
   supplierPrice  Float?
   lastSourced    DateTime?
 
-  // SPEED OPTIMIZATION: Add Indexing
-  // This makes the dashboard load instantly
-  @@index([lastSourced(sort: Desc)])
+  // REPLACE THE OLD INDEXES WITH THIS:
+  // This helps finding "supplierUrl: null" AND sorting by "lastSourced" at the same time
+  @@index([supplierUrl, lastSourced(sort: Desc)])
   @@index([createdAt(sort: Desc)])
 }
