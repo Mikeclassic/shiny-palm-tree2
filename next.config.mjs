@@ -2,9 +2,7 @@
 const nextConfig = {
     images: {
         remotePatterns: [
-            { protocol: 'https', hostname: 'images.unsplash.com' },
-            { protocol: 'https', hostname: 'replicate.delivery' },
-            { protocol: 'https', hostname: 'ae01.alicdn.com' }
+            { protocol: 'https', hostname: '**' } // Allow ALL domains for scraping
         ]
     }
 };
