@@ -302,4 +302,94 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 3: PROFIT & SOURCING --- */}
             {activeTab === "profit" && (
-                <div className="max-w-2xl mx-auto space-y-8
+                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    
+                    {/* Calculator */}
+                    <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
+                        <div className="flex items-center gap-2 text-green-400 mb-6">
+                            <Calculator size={20} />
+                            <h3 className="font-bold text-lg">Profit Calculator</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-6 items-end">
+                            <div>
+                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Supplier Cost</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={supplierPrice} 
+                                        onChange={(e) => setSupplierPrice(e.target.value)} 
+                                        className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Selling Price</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={sellingPrice} 
+                                        onChange={(e) => setSellingPrice(e.target.value)} 
+                                        className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono"
+                                    />
+                                </div>
+                            </div>
+                            <div className="bg-black border border-gray-800 rounded-xl p-3 text-right">
+                                <p className="text-[10px] text-gray-500 uppercase font-bold">Net Profit</p>
+                                <p className={`text-2xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-gray-500'}`}>
+                                    {profit ? `$${profit}` : "--"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sourcing Links */}
+                    <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
+                        <div className="flex items-center gap-2 text-blue-400 mb-6">
+                            <ExternalLink size={20} />
+                            <h3 className="font-bold text-lg">Sourcing Links</h3>
+                        </div>
+
+                        <div className="space-y-3">
+                            <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-black border border-gray-800 rounded-xl hover:border-gray-600 transition group">
+                                <div className="flex items-center gap-3">
+                                    <span className="bg-gray-800 p-2 rounded-lg text-xs font-bold text-gray-300">COMPETITOR</span>
+                                    <span className="text-sm font-medium text-gray-300 group-hover:text-white">View Original Listing</span>
+                                </div>
+                                <ExternalLink size={16} className="text-gray-600 group-hover:text-white" />
+                            </a>
+
+                            {product.supplierUrl ? (
+                                <a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-900/10 border border-green-900/30 rounded-xl hover:bg-green-900/20 hover:border-green-500/50 transition group">
+                                    <div className="flex items-center gap-3">
+                                        <span className="bg-green-600 p-2 rounded-lg text-xs font-bold text-white">SUPPLIER</span>
+                                        <span className="text-sm font-medium text-green-100 group-hover:text-white">Buy on AliExpress</span>
+                                    </div>
+                                    <ExternalLink size={16} className="text-green-500 group-hover:text-green-300" />
+                                </a>
+                            ) : (
+                                <div className="p-4 bg-black border border-dashed border-gray-800 rounded-xl text-center text-gray-500 text-sm">
+                                    No supplier matched yet. 
+                                    <a 
+                                        href={`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`} 
+                                        target="_blank" 
+                                        className="text-blue-400 hover:underline ml-1"
+                                    >
+                                        Try Manual Search
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                </div>
+            )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
