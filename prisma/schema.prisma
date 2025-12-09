@@ -1,3 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String
+  credits   Int      @default(5)
+  isPro     Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model Product {
   id          String   @id @default(cuid())
   title       String
@@ -13,15 +31,16 @@ model Product {
   publishedAt DateTime?
 
   // AI & Content Fields
-  originalDesc   String?  @db.Text  // <--- NEW FIELD (Raw store text)
-  generatedDesc  String?  @db.Text  // The AI version
-  generatedImage String?  
+  originalDesc   String?  @db.Text  // Raw text from store
+  generatedDesc  String?  @db.Text  // AI rewritten text
+  generatedImage String?            // AI background image
   generatedTags  String?  @db.Text
   
-  // (Remove 'era', 'condition', 'gender' if you no longer want to store them, 
-  // but keeping them is fine for legacy support. We will focus on 'style' for Tone).
-  style          String?  // We will use this for TONE
-  
+  // Preferences
+  condition      String?
+  era            String?
+  gender         String?
+  style          String?            // Used for Tone
   aesthetic      String?  @default("Trending 🔥")
 
   // Supplier Hunter Fields
@@ -30,6 +49,7 @@ model Product {
   lastSourced    DateTime?
   createdAt      DateTime @default(now())
 
+  // Speed Indexes
   @@index([supplierUrl, lastSourced(sort: Desc)])
   @@index([createdAt(sort: Desc)])
 }
