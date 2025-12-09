@@ -9,7 +9,9 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "scrape": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/daily-scrape.ts",
-    "hunt": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/supplier-hunter.ts"
+    "hunt": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/supplier-hunter.ts",
+    "audit": "AUDIT_MODE=true ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/supplier-hunter.ts",
+    "backfill": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/fill-descriptions.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.0.0",
