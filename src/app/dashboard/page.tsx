@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { Database, Search, ShoppingBag, Globe, AlertCircle, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Database, ShoppingBag, Globe, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ProductGrid from "@/components/ProductGrid";
+import DashboardFilters from "@/components/DashboardFilters"; // <--- Import the new component
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -25,12 +26,10 @@ export default async function Dashboard({
     where.title = { contains: query, mode: 'insensitive' };
   }
 
-  // Filter by Product Type (if selected)
   if (type !== "all") {
     where.productType = type;
   }
 
-  // Filter by Tab Status
   if (tab === "ali") {
     where.supplierUrl = { not: null };
   } else if (tab === "other") {
@@ -38,9 +37,9 @@ export default async function Dashboard({
     where.lastSourced = { not: null };
   }
 
-  // --- 2. FETCH DATA & METADATA ---
+  // --- 2. FETCH DATA ---
   
-  // Get Top 10 Product Types for the Filter Dropdown
+  // Get Categories for the Dropdown
   const topCategories = await db.product.groupBy({
     by: ['productType'],
     _count: { productType: true },
@@ -63,15 +62,7 @@ export default async function Dashboard({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // --- 3. SERVER ACTIONS ---
-
-  async function filterAction(formData: FormData) {
-    "use server";
-    const newQ = formData.get("q");
-    const newType = formData.get("type");
-    redirect(`/dashboard?q=${newQ}&tab=${tab}&type=${newType}&page=1`);
-  }
-
+  // Server Action for Pagination Jumping
   async function jumpPageAction(formData: FormData) {
     "use server";
     const newPage = formData.get("page");
@@ -101,40 +92,8 @@ export default async function Dashboard({
       {/* CONTROLS AREA */}
       <div className="flex flex-col gap-6">
         
-        {/* SEARCH & FILTER BAR */}
-        <form action={filterAction} className="flex gap-4">
-            <div className="relative flex-1">
-                <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
-                <input 
-                    name="q" 
-                    defaultValue={query}
-                    placeholder="Search products..." 
-                    className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
-                />
-            </div>
-            
-            <div className="relative w-64">
-                <Filter className="absolute left-4 top-3.5 text-gray-500" size={16} />
-                <select 
-                    name="type" 
-                    defaultValue={type}
-                    className="w-full h-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-8 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer text-sm font-medium"
-                    onChange={(e) => e.target.form?.requestSubmit()} // Auto-submit on change
-                >
-                    <option value="all">All Categories</option>
-                    <hr />
-                    {topCategories.map((c) => (
-                        <option key={c.productType} value={c.productType!}>
-                            {c.productType} ({c._count.productType})
-                        </option>
-                    ))}
-                </select>
-            </div>
-            
-            <button type="submit" className="bg-white text-black font-bold px-6 rounded-xl hover:bg-gray-200 transition">
-                Search
-            </button>
-        </form>
+        {/* NEW CLIENT COMPONENT FOR SEARCH & FILTER */}
+        <DashboardFilters topCategories={topCategories} currentTab={tab} />
 
         {/* TABS */}
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -161,7 +120,7 @@ export default async function Dashboard({
 
       <ProductGrid initialProducts={products} />
 
-      {/* ADVANCED PAGINATION */}
+      {/* PAGINATION */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 pt-8 border-t border-gray-800">
             <Link 
