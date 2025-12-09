@@ -5,7 +5,6 @@ import * as cheerio from 'cheerio';
 const prisma = new PrismaClient();
 
 const TARGET_STORES = [
-    // --- VIRAL DROPSHIPPING & TRENDING (High Priority) ---
     "https://www.fashionnova.com",
     "https://princesspolly.com",
     "https://ohpolly.com",
@@ -17,7 +16,7 @@ const TARGET_STORES = [
     "https://skinnydiplondon.com",
     "https://gymshark.com",
     "https://alphaleteathletics.com",
-    "https://shop.lululemon.com", // Often has hidden Shopify segments
+    "https://shop.lululemon.com",
     "https://colourpop.com",
     "https://blackmilkclothing.com",
     "https://iheartraves.com",
@@ -196,9 +195,9 @@ const TARGET_STORES = [
     "https://baublebar.com",
     "https://kendrascott.com",
     "https://alexandani.com",
-    "https://pandora.net", // Sometimes has Shopify subdomains
+    "https://pandora.net", 
     "https://swarovski.com",
-    "https://tiffany.com", // Not Shopify but worth checking collections/all sometimes
+    "https://tiffany.com", 
     "https://cartier.com",
     "https://vancleefarpels.com",
     "https://bulgari.com",
@@ -506,6 +505,14 @@ async function main() {
 
             if (!item || !item.images || item.images.length === 0) continue;
 
+            const isAvailable = item.variants.some((v: any) => v.available === true);
+
+            // EXTRACT RAW HTML DESCRIPTION
+            // We use cheerio to strip <p> and <br> tags for clean text storage
+            const rawHtml = item.body_html || "";
+            const $desc = cheerio.load(rawHtml);
+            const cleanDescription = $desc.text().trim() || item.title;
+
             // Save
             await prisma.product.create({
                 data: {
@@ -513,14 +520,24 @@ async function main() {
                     price: parseFloat(item.variants?.[0]?.price || "0"),
                     imageUrl: item.images[0].src,
                     sourceUrl: productUrl,
-                    aesthetic: "Trending 🔥"
+                    aesthetic: "Trending 🔥",
+                    
+                    // METADATA FROM JSON
+                    vendor: item.vendor,
+                    productType: item.product_type,
+                    tags: item.tags, // Assumes String[] in Prisma
+                    isSoldOut: !isAvailable,
+                    publishedAt: new Date(item.published_at),
+                    
+                    // NEW: RAW DESCRIPTION
+                    originalDesc: cleanDescription
                 }
             });
             process.stdout.write("+"); 
             newProducts++;
         }
     } catch (e) {
-        // Ignore errors to keep the massive loop running
+        // Ignore errors
     }
   }
 
