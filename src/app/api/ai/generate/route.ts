@@ -2,51 +2,33 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { title, price, imageUrl, preferences } = await req.json();
+    const { title, originalDesc, tone } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 
-    if (!apiKey) {
-        return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set." }, { status: 500 });
-    }
+    if (!apiKey) return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set." }, { status: 500 });
 
     const systemPrompt = `
-    You are an expert top-rated seller on Depop and Vinted.
-    Your goal is to MAXIMIZE CONVERSION and sell this item immediately.
-
-    USER SETTINGS:
-    - Condition: ${preferences?.condition || "Infer from image"}
-    - Era: ${preferences?.era || "Modern"}
-    - Style: ${preferences?.style || "Trendy"}
-    - Gender: ${preferences?.gender || "Unisex"}
-
-    ITEM:
-    - Title: ${title}
-    - Price: $${price}
-
+    You are an expert e-commerce copywriter.
+    Your task is to take a raw product description and rewrite it to be HIGHLY ENGAGING and OPTIMIZED FOR CONVERSION.
+    
+    TONE: ${tone || "Persuasive"}
+    
     INSTRUCTIONS:
-    1. ANALYZE the image.
-    2. Write a viral description (under 1000 chars).
-    3. Use bullet points for Measurements, Material, Condition.
-    4. End with 20 SEO hashtags.
+    1. Analyze the original text to extract key features, materials, and benefits.
+    2. Remove boring manufacturer jargon or technical codes.
+    3. Write a catchy hook.
+    4. Use bullet points for features.
+    5. Add 15-20 relevant hashtags at the bottom.
+    6. Return ONLY the new description.
     `;
 
-    // Using your specific requested model
     const payload = {
       model: "x-ai/grok-4.1-fast", 
       messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Write the listing description based on this image." },
-            {
-              type: "image_url",
-              image_url: { url: imageUrl }
-            }
-          ]
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: `Product Title: ${title}\n\nOriginal Text Context:\n${originalDesc}` 
         }
       ]
     };
@@ -65,7 +47,7 @@ export async function POST(req: Request) {
     if (!response.ok) {
         const errorBody = await response.text();
         console.error("OpenRouter API Error:", response.status, errorBody);
-        return NextResponse.json({ error: `Provider Error (${response.status}): ${errorBody}` }, { status: response.status });
+        return NextResponse.json({ error: `Provider Error (${response.status})` }, { status: response.status });
     }
 
     const data = await response.json();
