@@ -1,23 +1,21 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ImagePlus, Upload, Check, Loader2, Sparkles, Download, Search, X } from "lucide-react";
+import { ImagePlus, Upload, Check, Loader2, Sparkles, Download, Search, X, Type } from "lucide-react";
 import Image from "next/image";
 
-// 12 Pure Backgrounds (No Items)
+// 10 Text-Based Templates for Dropshipping
 const TEMPLATES = [
-  { id: 't1', name: 'White Podium', url: 'https://images.unsplash.com/photo-1557821552-17105176677c?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't2', name: 'Marble Surface', url: 'https://images.unsplash.com/photo-1596464528177-33eb97c0f833?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't3', name: 'Empty Wooden Table', url: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't4', name: 'Blurred Nature', url: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't5', name: 'Concrete Wall', url: 'https://images.unsplash.com/photo-1517646331032-9e8563c523ac?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't6', name: 'Silk Fabric', url: 'https://images.unsplash.com/photo-1528458909336-e7a0adfed0a5?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't7', name: 'Beige Studio', url: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't8', name: 'Green Leaves', url: 'https://images.unsplash.com/photo-1533038590840-1cde6e668a91?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't9', name: 'Sunlight Shadow', url: 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't10', name: 'Kitchen Counter (Empty)', url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't11', name: 'Gradient Backdrop', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't12', name: 'Blue Minimal', url: 'https://images.unsplash.com/photo-1595113316349-9fa4eb24f884?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't1', name: 'Clean White Podium', prompt: 'Product placed on a pristine white round podium, professional studio lighting, 4k high resolution, minimalist' },
+  { id: 't2', name: 'Luxury Marble', prompt: 'Product placed on a luxury white marble countertop with grey veins, soft daylight window reflection, elegant atmosphere' },
+  { id: 't3', name: 'Modern Living Room', prompt: 'Product placed on a coffee table in a bright modern living room with a beige sofa in the blurred background, cozy vibe' },
+  { id: 't4', name: 'Sunny Nature', prompt: 'Product placed on a wooden surface in a sunny garden with green leaves and bokeh background, natural lighting' },
+  { id: 't5', name: 'Urban Street', prompt: 'Product placed on a concrete surface in a cool urban street setting, city lights in background, streetwear aesthetic' },
+  { id: 't6', name: 'Bathroom Vanity', prompt: 'Product placed on a white bathroom vanity shelf next to a mirror, clean and fresh atmosphere, soft lighting' },
+  { id: 't7', name: 'Beach Sunset', prompt: 'Product placed on warm sand at the beach during sunset, golden hour lighting, ocean in the background' },
+  { id: 't8', name: 'Dark Aesthetic', prompt: 'Product placed on a dark slate stone surface, dramatic moody lighting, shadows, premium look' },
+  { id: 't9', name: 'Silk Fabric', prompt: 'Product placed on smooth champagne colored silk fabric folds, elegant and soft texture' },
+  { id: 't10', name: 'Kitchen Counter', prompt: 'Product placed on a modern kitchen island, blurred kitchen background, bright and airy' },
 ];
 
 interface BackgroundStudioProps {
@@ -34,6 +32,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
   const [previewUrl, setPreviewUrl] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
   const [searchQuery, setSearchQuery] = useState("");
+  
   const [loading, setLoading] = useState(false);
   const [resultImage, setResultImage] = useState("");
   
@@ -58,9 +57,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
             alert("Please upload an image first.");
             return;
         }
-        // In a real app, you would upload the file to S3/Cloudinary here.
-        // Since we don't have storage setup, we will use a base64 conversion
-        // Note: Large base64 strings might fail on some server configs.
+        // Base64 conversion for manual uploads
         const reader = new FileReader();
         reader.readAsDataURL(uploadedFile);
         
@@ -85,7 +82,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
             method: "POST",
             body: JSON.stringify({
                 productImageUrl: mainImageUrl,
-                backgroundImageUrl: selectedTemplate.url
+                prompt: selectedTemplate.prompt
             })
         });
 
@@ -94,7 +91,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         if (data.output) {
             setResultImage(data.output);
         } else {
-            alert("AI Failed to process image.");
+            alert("AI Failed to process image. Try a different image.");
         }
     } catch (e) {
         console.error(e);
@@ -104,7 +101,27 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
     }
   };
 
-  // Filter products for search
+  // True Force Download Function
+  const handleDownload = async () => {
+    if (!resultImage) return;
+    try {
+        const response = await fetch(resultImage);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `glowseller-magic-${Date.now()}.png`; // Forces filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (e) {
+        // Fallback if fetch fails (CORS)
+        window.open(resultImage, '_blank');
+    }
+  };
+
+  // Filter products
   const filteredProducts = userProducts.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -118,7 +135,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         </div>
         <div>
             <h2 className="text-3xl font-bold">Magic Studio ✨</h2>
-            <p className="text-gray-400 mt-1">Replace product backgrounds with professional scenes in seconds.</p>
+            <p className="text-gray-400 mt-1">Transform product images using AI-powered scene generation.</p>
         </div>
       </div>
 
@@ -127,7 +144,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         {/* LEFT COLUMN: CONTROLS */}
         <div className="lg:col-span-1 space-y-8">
             
-            {/* 1. SELECT SOURCE */}
+            {/* 1. SELECT PRODUCT */}
             <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                 <h3 className="font-bold text-lg mb-4 text-white">1. Select Product</h3>
                 <div className="flex bg-black p-1 rounded-lg mb-4 border border-gray-800">
@@ -181,7 +198,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                             <input 
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search your products..."
+                                placeholder="Search products..."
                                 className="w-full bg-black border border-gray-800 rounded-lg py-2 pl-9 pr-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                             />
                         </div>
@@ -198,7 +215,6 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                                             src={p.imageUrl} 
                                             alt={p.title}
                                             fill
-                                            // FIX: CHANGED TO CONTAIN SO FULL IMAGE SHOWS
                                             className="object-contain" 
                                             sizes="150px"
                                         />
@@ -219,26 +235,24 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                 )}
             </div>
 
-            {/* 2. SELECT BACKGROUND */}
+            {/* 2. SELECT SCENE */}
             <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
-                <h3 className="font-bold text-lg mb-4 text-white">2. Select Background</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <h3 className="font-bold text-lg mb-4 text-white">2. Select Scene</h3>
+                <div className="grid grid-cols-2 gap-3">
                     {TEMPLATES.map(t => (
                         <button
                             key={t.id}
                             onClick={() => setSelectedTemplate(t)}
-                            className={`relative aspect-square rounded-lg overflow-hidden border transition ${selectedTemplate.id === t.id ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-gray-800 hover:border-gray-600'}`}
+                            className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-purple-500 bg-purple-900/10 ring-1 ring-purple-500' : 'border-gray-700 hover:border-gray-500 bg-black'}`}
                         >
-                            <img src={t.url} alt={t.name} className="w-full h-full object-cover" />
+                            <span className="text-xs font-bold block mb-1 text-white">{t.name}</span>
+                            <span className="text-[10px] text-gray-500 line-clamp-2 leading-tight">{t.prompt}</span>
                             {selectedTemplate.id === t.id && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                    <Check className="text-white" size={20} />
-                                </div>
+                                <div className="absolute top-2 right-2 text-purple-500"><Check size={14} /></div>
                             )}
                         </button>
                     ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-3 text-center">Selected: <span className="text-purple-400 font-bold">{selectedTemplate.name}</span></p>
             </div>
 
             {/* GENERATE BUTTON */}
@@ -248,28 +262,32 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {loading ? <Loader2 className="animate-spin" /> : <Sparkles className="text-yellow-300 fill-yellow-300" />}
-                {loading ? "Magic in progress..." : "Generate Image"}
+                {loading ? "Generating Scene..." : "Generate Image"}
             </button>
 
         </div>
 
         {/* RIGHT COLUMN: PREVIEW */}
-        <div className="lg:col-span-2 bg-black border border-gray-800 rounded-3xl p-8 flex items-center justify-center relative overflow-hidden min-h-[500px]">
+        <div className="lg:col-span-2 bg-black border border-gray-800 rounded-3xl p-8 flex items-center justify-center relative overflow-hidden min-h-[600px]">
             {/* Background decorative elements */}
             <div className="absolute top-0 right-0 p-64 bg-purple-900/10 blur-[100px] rounded-full -mr-32 -mt-32 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 p-64 bg-blue-900/10 blur-[100px] rounded-full -ml-32 -mb-32 pointer-events-none"></div>
 
             {resultImage ? (
                 <div className="relative w-full h-full flex flex-col items-center animate-in fade-in zoom-in duration-500">
-                    <div className="relative w-full max-w-lg aspect-square rounded-xl overflow-hidden shadow-2xl border border-gray-700">
+                    <div className="relative w-full max-w-2xl aspect-square rounded-xl overflow-hidden shadow-2xl border border-gray-700">
+                        {/* Use standard img for result to allow right-click save if needed */}
                         <img src={resultImage} alt="Result" className="w-full h-full object-contain bg-gray-900" />
                     </div>
                     <div className="mt-6 flex gap-4">
-                        <a href={resultImage} download target="_blank" className="flex items-center gap-2 bg-white text-black px-6 py-3 rounded-full font-bold hover:bg-gray-200 transition">
+                        <button 
+                            onClick={handleDownload}
+                            className="flex items-center gap-2 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg"
+                        >
                             <Download size={18} /> Download HD
-                        </a>
+                        </button>
                         <button onClick={() => setResultImage("")} className="px-6 py-3 rounded-full font-bold text-gray-400 hover:text-white transition">
-                            Reset
+                            Create Another
                         </button>
                     </div>
                 </div>
@@ -280,7 +298,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                     </div>
                     <div>
                         <p className="text-xl font-medium">Ready to create magic?</p>
-                        <p className="text-sm mt-1 max-w-xs mx-auto">Select a product and a background template to merge them using AI.</p>
+                        <p className="text-sm mt-1 max-w-xs mx-auto">Select a product and choose a scene style. The AI will blend your product naturally into the environment.</p>
                     </div>
                 </div>
             )}
