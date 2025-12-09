@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { ImagePlus, Upload, Check, Loader2, Sparkles, Download, Search, X } from "lucide-react";
 import Image from "next/image";
 
-// REVISED TEMPLATES: ONLY describing the background/place
+// REVISED TEMPLATES
 const TEMPLATES = [
   { id: 't1', name: 'White Podium', prompt: 'a pristine white round podium, professional studio lighting' },
   { id: 't2', name: 'Luxury Marble', prompt: 'a luxury white marble surface with soft window reflection' },
@@ -33,6 +33,9 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
   const [resultImage, setResultImage] = useState("");
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Determine which image is currently active
+  const activeImage = mode === 'upload' ? previewUrl : selectedProductUrl;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,7 +74,6 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
     setLoading(true);
     setResultImage("");
 
-    // CONSTRUCT THE PROMPT EXACTLY AS REQUESTED
     const finalPrompt = `Change the background with ${selectedTemplate.prompt}`;
 
     try {
@@ -79,7 +81,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
             method: "POST",
             body: JSON.stringify({
                 productImageUrl: mainImageUrl,
-                prompt: finalPrompt // Sends "Change the background with..."
+                prompt: finalPrompt
             })
         });
 
@@ -137,6 +139,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         {/* LEFT COLUMN */}
         <div className="lg:col-span-1 space-y-8">
             
+            {/* 1. SELECT PRODUCT */}
             <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                 <h3 className="font-bold text-lg mb-4 text-white">1. Select Product</h3>
                 <div className="flex bg-black p-1 rounded-lg mb-4 border border-gray-800">
@@ -227,6 +230,17 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                 )}
             </div>
 
+            {/* NEW: SELECTED IMAGE PREVIEW */}
+            {activeImage && (
+                <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl animate-in fade-in slide-in-from-top-4">
+                    <h3 className="font-bold text-sm mb-4 text-gray-400 uppercase tracking-wider">Selected Reference</h3>
+                    <div className="relative w-full h-64 bg-black rounded-xl border border-gray-800 flex items-center justify-center overflow-hidden">
+                        <img src={activeImage} alt="Active" className="w-full h-full object-contain" />
+                    </div>
+                </div>
+            )}
+
+            {/* 2. SELECT SCENE */}
             <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                 <h3 className="font-bold text-lg mb-4 text-white">2. Select Scene</h3>
                 <div className="grid grid-cols-2 gap-3">
