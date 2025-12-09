@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Type } from "lucide-react";
 import Image from "next/image";
 
 // DIVERSE DROPSHIPPING TEMPLATES
@@ -30,14 +30,17 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
   // --- TAB 1: AI COPYWRITER ---
   const [tone, setTone] = useState(product.style || "Persuasive");
-  const [category, setCategory] = useState(product.era || "General");
-  const [generatedDesc, setGeneratedDesc] = useState(product.generatedDesc || "");
+  
+  // Use generated if exists, otherwise title as fallback (originalDesc is displayed separately)
+  const [currentDesc, setCurrentDesc] = useState(
+    product.generatedDesc || ""
+  );
+  
   const [loadingText, setLoadingText] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // --- TAB 2: MAGIC STUDIO ---
   const [selectedTemplate, setSelectedTemplate] = useState(SCENE_TEMPLATES[0]);
-  // LOAD SAVED IMAGE IF EXISTS
   const [resultImage, setResultImage] = useState(product.generatedImage || ""); 
   const [loadingImage, setLoadingImage] = useState(false);
 
@@ -65,9 +68,9 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             method: "POST",
             body: JSON.stringify({
                 id: product.id,
-                generatedDesc: generatedDesc, 
-                generatedImage: resultImage, // Saves the AI Image
-                preferences: { style: tone, era: category },
+                generatedDesc: currentDesc, 
+                generatedImage: resultImage,
+                preferences: { style: tone }, 
             })
         });
     } catch (e) {
@@ -75,34 +78,34 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   };
 
-  const generateWithAI = async () => {
+  const optimizeWithAI = async () => {
     setLoadingText(true);
     try {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         body: JSON.stringify({
             title: product.title,
-            price: sellingPrice,
-            imageUrl: product.imageUrl, 
-            preferences: { style: tone, era: category }
+            originalDesc: product.originalDesc || product.title, // Pass raw text for rewriting
+            tone: tone
         }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setGeneratedDesc(data);
       
-      // Auto-save Text
+      setCurrentDesc(data); // Set the result
+      
+      // Auto-save
       await fetch("/api/product/save", {
         method: "POST",
         body: JSON.stringify({
             id: product.id,
             generatedDesc: data,
-            preferences: { style: tone, era: category }
+            preferences: { style: tone }
         })
       });
 
     } catch (e: any) {
-      alert(`Generation Failed: ${e.message}`);
+      alert(`Optimization Failed: ${e.message}`);
     } finally {
       setLoadingText(false);
     }
@@ -124,13 +127,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         if (data.output) {
             setResultImage(data.output);
             
-            // AUTO-SAVE IMAGE TO DB IMMEDIATELY
             await fetch("/api/product/save", {
                 method: "POST",
                 body: JSON.stringify({
                     id: product.id,
                     generatedImage: data.output,
-                    preferences: { style: tone, era: category }
+                    preferences: { style: tone }
                 })
             });
 
@@ -162,7 +164,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   };
 
-  // Google Search for "Deep Search"
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
@@ -179,9 +180,9 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 <h3 className="font-bold text-white text-sm line-clamp-1 max-w-md">{product.title}</h3>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded border border-purple-800">
-                        {category}
+                        {tone}
                     </span>
-                    <span className="text-xs text-gray-500">One-Stop Studio</span>
+                    <span className="text-xs text-gray-500">Listing Studio</span>
                 </div>
              </div>
           </div>
@@ -220,63 +221,69 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         {/* CONTENT AREA */}
         <div className="flex-1 overflow-y-auto p-6 bg-black">
             
-            {/* --- TAB 1: COPYWRITER (UNIVERSAL) --- */}
+            {/* --- TAB 1: COPYWRITER (REWRITER MODE) --- */}
             {activeTab === "text" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
-                    {/* Controls */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
-                                    <Tag size={12} /> Product Category
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {["Fashion", "Home Decor", "Tech/Gadgets", "Beauty", "Pets", "Kids", "Fitness", "General"].map(opt => (
-                                        <button key={opt} onClick={() => setCategory(opt)} className={`py-2 text-[10px] rounded-lg border transition ${category === opt ? "bg-purple-600 border-purple-600 text-white" : "border-gray-800 text-gray-400 hover:border-gray-600"}`}>{opt}</button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
-                                    <Wand2 size={12} /> Tone of Voice
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {["Persuasive", "Luxury/High-End", "Viral/Hype", "Friendly", "Professional", "Minimalist"].map(opt => (
-                                        <button key={opt} onClick={() => setTone(opt)} className={`py-2 text-[10px] rounded-lg border transition ${tone === opt ? "bg-purple-600 border-purple-600 text-white" : "border-gray-800 text-gray-400 hover:border-gray-600"}`}>{opt}</button>
-                                    ))}
-                                </div>
+                    
+                    {/* LEFT: CONTROLS */}
+                    <div className="lg:col-span-1 space-y-6 flex flex-col">
+                        <div>
+                            <label className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
+                                <Wand2 size={12} /> Select Tone
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {["Persuasive", "Luxury/High-End", "Viral/Hype", "Friendly", "Professional", "Minimalist"].map(opt => (
+                                    <button 
+                                        key={opt} 
+                                        onClick={() => setTone(opt)} 
+                                        className={`py-2 text-[10px] rounded-lg border transition ${tone === opt ? "bg-purple-600 border-purple-600 text-white" : "border-gray-800 text-gray-400 hover:border-gray-600"}`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
                             </div>
                         </div>
+
+                        {/* ORIGINAL TEXT DISPLAY */}
+                        <div className="flex-1 flex flex-col min-h-0">
+                            <label className="text-xs text-gray-500 uppercase font-bold mb-2">Original Description</label>
+                            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 border-dashed">
+                                <p className="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed">
+                                    {product.originalDesc || product.title}
+                                </p>
+                            </div>
+                        </div>
+
                         <button 
-                            onClick={generateWithAI} 
+                            onClick={optimizeWithAI} 
                             disabled={loadingText}
-                            className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20"
                         >
-                            {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-600 fill-yellow-600" />}
-                            {loadingText ? "Writing Magic..." : "Generate Description"}
+                            {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                            {loadingText ? "Rewriting..." : "✨ Make it Better & Original"}
                         </button>
                     </div>
 
-                    {/* Output */}
+                    {/* RIGHT: EDITOR */}
                     <div className="lg:col-span-2 flex flex-col h-full">
+                        <label className="text-xs text-gray-500 uppercase font-bold mb-2">Optimized Result</label>
                         <div className="flex-1 bg-gray-900 border border-gray-800 rounded-xl p-4 relative group">
-                            {generatedDesc ? (
+                            {currentDesc ? (
                                 <textarea 
-                                    value={generatedDesc}
-                                    onChange={(e) => setGeneratedDesc(e.target.value)}
+                                    value={currentDesc}
+                                    onChange={(e) => setCurrentDesc(e.target.value)}
                                     className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-300 resize-none font-mono leading-relaxed custom-scrollbar"
-                                    placeholder="AI output will appear here..."
                                 />
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-600">
                                     <Type size={32} className="mb-2 opacity-20" />
-                                    <p className="text-sm">Select options and click Generate</p>
+                                    <p className="text-sm">Click "Make it Better" to generate</p>
                                 </div>
                             )}
                             
-                            {generatedDesc && (
+                            {currentDesc && (
                                 <button 
-                                    onClick={() => { navigator.clipboard.writeText(generatedDesc); setCopied(true); setTimeout(() => setCopied(false), 2000); }} 
+                                    onClick={() => { navigator.clipboard.writeText(currentDesc); setCopied(true); setTimeout(() => setCopied(false), 2000); }} 
                                     className="absolute top-4 right-4 bg-black/80 hover:bg-black text-white p-2 rounded-lg text-xs flex items-center gap-2 border border-gray-700 transition"
                                 >
                                     {copied ? <CheckCircle2 size={14} className="text-green-500" /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
@@ -287,7 +294,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 </div>
             )}
 
-            {/* --- TAB 2: MAGIC STUDIO --- */}
+            {/* --- TAB 2 & 3: MEDIA & PROFIT (Standard) --- */}
             {activeTab === "media" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
                     {/* Controls */}
@@ -317,7 +324,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
                     {/* Preview */}
                     <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center relative overflow-hidden">
-                        {/* Background Gradients */}
                         <div className="absolute top-0 right-0 p-32 bg-pink-600/10 blur-3xl rounded-full pointer-events-none"></div>
                         
                         {resultImage ? (
@@ -336,7 +342,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             </div>
                         ) : (
                             <div className="relative w-full h-full p-8 flex items-center justify-center transition duration-500">
-                                {/* CLEAN PREVIEW - NO OVERLAY */}
                                 <Image src={product.imageUrl} alt="Original" fill className="object-contain p-4" />
                             </div>
                         )}
@@ -344,59 +349,39 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 </div>
             )}
 
-            {/* --- TAB 3: PROFIT & SOURCING --- */}
             {activeTab === "profit" && (
                 <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                    
-                    {/* Calculator */}
                     <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                         <div className="flex items-center gap-2 text-green-400 mb-6">
                             <Calculator size={20} />
                             <h3 className="font-bold text-lg">Profit Calculator</h3>
                         </div>
-                        
                         <div className="grid grid-cols-3 gap-6 items-end">
                             <div>
                                 <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Supplier Cost</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-3 text-gray-500">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={supplierPrice} 
-                                        onChange={(e) => setSupplierPrice(e.target.value)} 
-                                        className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono"
-                                        placeholder="0.00"
-                                    />
+                                    <input type="number" value={supplierPrice} onChange={(e) => setSupplierPrice(e.target.value)} className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono" placeholder="0.00" />
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Selling Price</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-3 text-gray-500">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={sellingPrice} 
-                                        onChange={(e) => setSellingPrice(e.target.value)} 
-                                        className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono"
-                                    />
+                                    <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono" />
                                 </div>
                             </div>
                             <div className="bg-black border border-gray-800 rounded-xl p-3 text-right">
                                 <p className="text-[10px] text-gray-500 uppercase font-bold">Net Profit</p>
-                                <p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-gray-500'}`}>
-                                    {profit ? `$${profit}` : "--"}
-                                </p>
+                                <p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-gray-500'}`}>{profit ? `$${profit}` : "--"}</p>
                             </div>
                         </div>
                     </div>
-
-                    {/* Sourcing Links */}
                     <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                         <div className="flex items-center gap-2 text-blue-400 mb-6">
                             <ExternalLink size={20} />
                             <h3 className="font-bold text-lg">Sourcing Links</h3>
                         </div>
-
                         <div className="space-y-3">
                             <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-black border border-gray-800 rounded-xl hover:border-gray-600 transition group">
                                 <div className="flex items-center gap-3">
@@ -405,7 +390,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </div>
                                 <ExternalLink size={16} className="text-gray-600 group-hover:text-white" />
                             </a>
-
                             {product.supplierUrl ? (
                                 <a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-900/10 border border-green-900/30 rounded-xl hover:bg-green-900/20 hover:border-green-500/50 transition group">
                                     <div className="flex items-center gap-3">
@@ -417,18 +401,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             ) : (
                                 <div className="p-4 bg-black border border-dashed border-gray-800 rounded-xl text-center text-gray-500 text-sm">
                                     No supplier matched automatically. 
-                                    <a 
-                                        href={manualSearchUrl} 
-                                        target="_blank" 
-                                        className="text-blue-400 hover:underline ml-1 font-bold flex items-center justify-center gap-1 mt-2"
-                                    >
-                                        <Search size={12} /> Deep Search
-                                    </a>
+                                    <a href={manualSearchUrl} target="_blank" className="text-blue-400 hover:underline ml-1 font-bold flex items-center justify-center gap-1 mt-2"><Search size={12} /> Deep Search</a>
                                 </div>
                             )}
                         </div>
                     </div>
-
                 </div>
             )}
 
