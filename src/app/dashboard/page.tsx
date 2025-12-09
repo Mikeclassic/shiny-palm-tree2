@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { Database, Search, ShoppingBag, Globe, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Database, Search, ShoppingBag, Globe, AlertCircle, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ProductGrid from "@/components/ProductGrid";
@@ -10,20 +10,27 @@ export const revalidate = 0;
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: { q?: string; tab?: string; page?: string };
+  searchParams: { q?: string; tab?: string; page?: string; type?: string };
 }) {
   const query = searchParams.q || "";
   const tab = searchParams.tab || "all"; 
+  const type = searchParams.type || "all";
   const page = Number(searchParams.page) || 1;
-  const pageSize = 24; // Keep this low for speed
+  const pageSize = 24;
 
+  // --- 1. BUILD QUERY ---
   const where: any = {};
   
   if (query) {
     where.title = { contains: query, mode: 'insensitive' };
   }
 
-  // TAB FILTERING
+  // Filter by Product Type (if selected)
+  if (type !== "all") {
+    where.productType = type;
+  }
+
+  // Filter by Tab Status
   if (tab === "ali") {
     where.supplierUrl = { not: null };
   } else if (tab === "other") {
@@ -31,28 +38,44 @@ export default async function Dashboard({
     where.lastSourced = { not: null };
   }
 
-  // DB QUERY (Fast & Efficient)
+  // --- 2. FETCH DATA & METADATA ---
+  
+  // Get Top 10 Product Types for the Filter Dropdown
+  const topCategories = await db.product.groupBy({
+    by: ['productType'],
+    _count: { productType: true },
+    orderBy: { _count: { productType: 'desc' } },
+    take: 10,
+    where: { productType: { not: null } }
+  });
+
   const totalCount = await db.product.count({ where });
+  
   const products = await db.product.findMany({
     where,
     take: pageSize,
     skip: (page - 1) * pageSize,
-    // THE SORTING LOGIC (Handled by DB)
     orderBy: [
-        // Put items with a 'lastSourced' date at the TOP
-        // Put items that haven't been checked yet (null) at the BOTTOM
         { lastSourced: { sort: 'desc', nulls: 'last' } }, 
-        // Secondary sort by newest added
-        { createdAt: 'desc' }
+        { createdAt: 'desc' }    
     ]
   });
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  async function searchAction(formData: FormData) {
+  // --- 3. SERVER ACTIONS ---
+
+  async function filterAction(formData: FormData) {
     "use server";
-    const q = formData.get("q");
-    redirect(`/dashboard?q=${q}&tab=${tab}&page=1`);
+    const newQ = formData.get("q");
+    const newType = formData.get("type");
+    redirect(`/dashboard?q=${newQ}&tab=${tab}&type=${newType}&page=1`);
+  }
+
+  async function jumpPageAction(formData: FormData) {
+    "use server";
+    const newPage = formData.get("page");
+    redirect(`/dashboard?q=${query}&tab=${tab}&type=${type}&page=${newPage}`);
   }
 
   return (
@@ -75,33 +98,60 @@ export default async function Dashboard({
         </div>
       </div>
 
-      {/* TABS & SEARCH */}
+      {/* CONTROLS AREA */}
       <div className="flex flex-col gap-6">
-        <form action={searchAction} className="relative">
-            <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
-            <input 
-                name="q" 
-                defaultValue={query}
-                placeholder="Search products..." 
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
-            />
+        
+        {/* SEARCH & FILTER BAR */}
+        <form action={filterAction} className="flex gap-4">
+            <div className="relative flex-1">
+                <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
+                <input 
+                    name="q" 
+                    defaultValue={query}
+                    placeholder="Search products..." 
+                    className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                />
+            </div>
+            
+            <div className="relative w-64">
+                <Filter className="absolute left-4 top-3.5 text-gray-500" size={16} />
+                <select 
+                    name="type" 
+                    defaultValue={type}
+                    className="w-full h-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-8 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer text-sm font-medium"
+                    onChange={(e) => e.target.form?.requestSubmit()} // Auto-submit on change
+                >
+                    <option value="all">All Categories</option>
+                    <hr />
+                    {topCategories.map((c) => (
+                        <option key={c.productType} value={c.productType!}>
+                            {c.productType} ({c._count.productType})
+                        </option>
+                    ))}
+                </select>
+            </div>
+            
+            <button type="submit" className="bg-white text-black font-bold px-6 rounded-xl hover:bg-gray-200 transition">
+                Search
+            </button>
         </form>
 
+        {/* TABS */}
         <div className="flex gap-2 overflow-x-auto pb-2">
             <Link 
-                href={`/dashboard?q=${query}&tab=all&page=1`} 
+                href={`/dashboard?q=${query}&tab=all&type=${type}&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'all' ? 'bg-white text-black' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <ShoppingBag size={16} /> All Products
             </Link>
             <Link 
-                href={`/dashboard?q=${query}&tab=ali&page=1`} 
+                href={`/dashboard?q=${query}&tab=ali&type=${type}&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'ali' ? 'bg-green-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <Globe size={16} /> AliExpress Verified
             </Link>
             <Link 
-                href={`/dashboard?q=${query}&tab=other&page=1`} 
+                href={`/dashboard?q=${query}&tab=other&type=${type}&page=1`} 
                 className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition ${tab === 'other' ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             >
                 <AlertCircle size={16} /> Other Suppliers
@@ -111,25 +161,31 @@ export default async function Dashboard({
 
       <ProductGrid initialProducts={products} />
 
-      {/* PAGINATION */}
+      {/* ADVANCED PAGINATION */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 pt-8 border-t border-gray-800">
             <Link 
-                href={page > 1 ? `/dashboard?page=${page - 1}&q=${query}&tab=${tab}` : '#'}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page > 1 ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+                href={page > 1 ? `/dashboard?page=${page - 1}&q=${query}&tab=${tab}&type=${type}` : '#'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition ${page > 1 ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
             >
-                <ChevronLeft size={18} /> Previous
+                <ChevronLeft size={16} /> Prev
             </Link>
             
-            <span className="text-sm font-mono text-gray-500">
-                Page <span className="text-white">{page}</span> of {totalPages}
-            </span>
+            <form action={jumpPageAction} className="flex items-center gap-2 bg-gray-900 px-4 py-2 rounded-lg border border-gray-800">
+                <span className="text-sm text-gray-500">Page</span>
+                <input 
+                    name="page" 
+                    defaultValue={page} 
+                    className="w-12 bg-black border border-gray-700 rounded text-center text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 py-1"
+                />
+                <span className="text-sm text-gray-500">of {totalPages}</span>
+            </form>
 
             <Link 
-                href={page < totalPages ? `/dashboard?page=${page + 1}&q=${query}&tab=${tab}` : '#'}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition ${page < totalPages ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
+                href={page < totalPages ? `/dashboard?page=${page + 1}&q=${query}&tab=${tab}&type=${type}` : '#'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition ${page < totalPages ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-900 text-gray-600 cursor-not-allowed'}`}
             >
-                Next <ChevronRight size={18} />
+                Next <ChevronRight size={16} />
             </Link>
         </div>
       )}
