@@ -1,0 +1,14 @@
+name: Run Content Backfill
+on: workflow_dispatch
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm install
+      - run: npx prisma generate
+      - run: npm run backfill
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
