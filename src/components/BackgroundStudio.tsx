@@ -1,23 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { ImagePlus, Upload, Check, Loader2, Sparkles, Download, Search } from "lucide-react";
+import { useState, useRef } from "react";
+import { ImagePlus, Upload, Check, Loader2, Sparkles, Download, Search, X } from "lucide-react";
 import Image from "next/image";
 
-// 12 Professional Dropshipping Backgrounds
+// 12 Pure Backgrounds (No Items)
 const TEMPLATES = [
-  { id: 't1', name: 'Clean Studio', url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't2', name: 'Marble Luxury', url: 'https://images.unsplash.com/photo-1596464528177-33eb97c0f833?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't3', name: 'Wooden Table', url: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't4', name: 'Nature Bokeh', url: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't5', name: 'Modern Concrete', url: 'https://images.unsplash.com/photo-1517646331032-9e8563c523ac?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't6', name: 'Soft Silk', url: 'https://images.unsplash.com/photo-1528458909336-e7a0adfed0a5?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't7', name: 'Podium Beige', url: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't8', name: 'Tropical Leaf', url: 'https://images.unsplash.com/photo-1533038590840-1cde6e668a91?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't9', name: 'Urban Street', url: 'https://images.unsplash.com/photo-1449824913929-4b8a6143236c?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't10', name: 'Kitchen Counter', url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't11', name: 'Sunset Gradient', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=1000&auto=format&fit=crop' },
-  { id: 't12', name: 'Minimal Blue', url: 'https://images.unsplash.com/photo-1595113316349-9fa4eb24f884?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't1', name: 'White Podium', url: 'https://images.unsplash.com/photo-1557821552-17105176677c?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't2', name: 'Marble Surface', url: 'https://images.unsplash.com/photo-1596464528177-33eb97c0f833?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't3', name: 'Empty Wooden Table', url: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't4', name: 'Blurred Nature', url: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't5', name: 'Concrete Wall', url: 'https://images.unsplash.com/photo-1517646331032-9e8563c523ac?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't6', name: 'Silk Fabric', url: 'https://images.unsplash.com/photo-1528458909336-e7a0adfed0a5?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't7', name: 'Beige Studio', url: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't8', name: 'Green Leaves', url: 'https://images.unsplash.com/photo-1533038590840-1cde6e668a91?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't9', name: 'Sunlight Shadow', url: 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't10', name: 'Kitchen Counter (Empty)', url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't11', name: 'Gradient Backdrop', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=1000&auto=format&fit=crop' },
+  { id: 't12', name: 'Blue Minimal', url: 'https://images.unsplash.com/photo-1595113316349-9fa4eb24f884?q=80&w=1000&auto=format&fit=crop' },
 ];
 
 interface BackgroundStudioProps {
@@ -28,21 +28,52 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
   // Mode: 'upload' or 'saved'
   const [mode, setMode] = useState<'upload' | 'saved'>('saved');
   
-  // Inputs
-  const [uploadedUrl, setUploadedUrl] = useState("");
+  // State
   const [selectedProductUrl, setSelectedProductUrl] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Processing
   const [loading, setLoading] = useState(false);
   const [resultImage, setResultImage] = useState("");
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle File Upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      setSelectedProductUrl(""); // Clear saved selection
+    }
+  };
 
   const handleGenerate = async () => {
-    const mainImage = mode === 'upload' ? uploadedUrl : selectedProductUrl;
-    
-    if (!mainImage) {
-        alert("Please provide a main image first.");
+    let mainImageUrl = selectedProductUrl;
+
+    if (mode === 'upload') {
+        if (!uploadedFile) {
+            alert("Please upload an image first.");
+            return;
+        }
+        // In a real app, you would upload the file to S3/Cloudinary here.
+        // Since we don't have storage setup, we will use a base64 conversion
+        // Note: Large base64 strings might fail on some server configs.
+        const reader = new FileReader();
+        reader.readAsDataURL(uploadedFile);
+        
+        await new Promise((resolve) => {
+            reader.onloadend = () => {
+                mainImageUrl = reader.result as string;
+                resolve(true);
+            };
+        });
+    }
+
+    if (!mainImageUrl) {
+        alert("Please select or upload an image.");
         return;
     }
 
@@ -53,7 +84,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         const res = await fetch("/api/ai/background-change", {
             method: "POST",
             body: JSON.stringify({
-                productImageUrl: mainImage,
+                productImageUrl: mainImageUrl,
                 backgroundImageUrl: selectedTemplate.url
             })
         });
@@ -110,26 +141,37 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                         onClick={() => setMode('upload')}
                         className={`flex-1 py-2 text-sm font-bold rounded-md transition ${mode === 'upload' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
                     >
-                        Upload URL
+                        Manual Upload
                     </button>
                 </div>
 
                 {mode === 'upload' ? (
                     <div>
-                        <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Image URL</label>
-                        <div className="relative">
-                            <Upload size={16} className="absolute left-3 top-3.5 text-gray-500" />
-                            <input 
-                                value={uploadedUrl}
-                                onChange={(e) => setUploadedUrl(e.target.value)}
-                                placeholder="https://..." 
-                                className="w-full bg-black border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                            />
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={handleFileChange}
+                        />
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-gray-700 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 hover:bg-gray-800/50 transition h-40"
+                        >
+                            {previewUrl ? (
+                                <img src={previewUrl} className="h-full w-full object-contain" alt="Preview" />
+                            ) : (
+                                <>
+                                    <Upload size={24} className="text-gray-500 mb-2" />
+                                    <span className="text-xs text-gray-400 font-bold">Click to Upload Image</span>
+                                    <span className="text-[10px] text-gray-600 mt-1">JPG, PNG (Max 5MB)</span>
+                                </>
+                            )}
                         </div>
-                        {uploadedUrl && (
-                            <div className="mt-4 rounded-xl overflow-hidden border border-gray-800 h-40 relative">
-                                <img src={uploadedUrl} alt="Preview" className="w-full h-full object-cover" />
-                            </div>
+                        {previewUrl && (
+                            <button onClick={() => { setPreviewUrl(""); setUploadedFile(null); }} className="mt-2 text-xs text-red-400 flex items-center gap-1 hover:text-red-300">
+                                <X size={12} /> Remove
+                            </button>
                         )}
                     </div>
                 ) : (
@@ -149,23 +191,24 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
                                 <div 
                                     key={p.id}
                                     onClick={() => setSelectedProductUrl(p.imageUrl)}
-                                    className={`cursor-pointer border rounded-lg overflow-hidden relative group ${selectedProductUrl === p.imageUrl ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-gray-800 hover:border-gray-600'}`}
+                                    className={`cursor-pointer border rounded-lg overflow-hidden relative group p-2 bg-black ${selectedProductUrl === p.imageUrl ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-gray-800 hover:border-gray-600'}`}
                                 >
-                                    <div className="h-24 bg-black relative">
+                                    <div className="h-24 relative w-full">
                                         <Image 
                                             src={p.imageUrl} 
                                             alt={p.title}
                                             fill
-                                            className="object-cover"
+                                            // FIX: CHANGED TO CONTAIN SO FULL IMAGE SHOWS
+                                            className="object-contain" 
                                             sizes="150px"
                                         />
                                     </div>
-                                    <div className="p-2 bg-gray-950">
-                                        <p className="text-[10px] text-gray-300 truncate">{p.title}</p>
+                                    <div className="pt-2 text-center">
+                                        <p className="text-[10px] text-gray-400 truncate w-full">{p.title}</p>
                                     </div>
                                     {selectedProductUrl === p.imageUrl && (
-                                        <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center z-10">
-                                            <div className="bg-purple-500 text-white p-1 rounded-full"><Check size={12} /></div>
+                                        <div className="absolute inset-0 bg-purple-500/10 flex items-start justify-end p-1 pointer-events-none">
+                                            <div className="bg-purple-500 text-white p-0.5 rounded-full"><Check size={10} /></div>
                                         </div>
                                     )}
                                 </div>
@@ -201,7 +244,7 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
             {/* GENERATE BUTTON */}
             <button 
                 onClick={handleGenerate}
-                disabled={loading || (!uploadedUrl && !selectedProductUrl)}
+                disabled={loading || (!uploadedFile && !selectedProductUrl)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {loading ? <Loader2 className="animate-spin" /> : <Sparkles className="text-yellow-300 fill-yellow-300" />}
