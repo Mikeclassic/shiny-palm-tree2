@@ -1,24 +1,5 @@
-// 1. CONNECTION SETTINGS (These were missing)
-generator client {
-  provider = "prisma-client-js"
-}
+// ... existing User model ...
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-// 2. USER MODEL
-model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  email     String
-  credits   Int      @default(5)
-  isPro     Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
-
-// 3. PRODUCT MODEL (Updated with new fields)
 model Product {
   id          String   @id @default(cuid())
   title       String
@@ -26,7 +7,7 @@ model Product {
   imageUrl    String
   sourceUrl   String   @unique
   
-  // NEW FIELDS FOR FILTERING
+  // Filtering
   vendor      String?
   productType String?
   tags        String[]
@@ -35,6 +16,7 @@ model Product {
 
   // AI Fields
   generatedDesc  String?  @db.Text
+  generatedImage String?  // <--- ADD THIS LINE
   generatedTags  String?  @db.Text
   condition      String?
   era            String?
@@ -42,13 +24,12 @@ model Product {
   style          String?
   aesthetic      String?  @default("Trending 🔥")
 
-  // Supplier Hunter Fields
+  // Supplier Fields
   supplierUrl    String?
   supplierPrice  Float?
   lastSourced    DateTime?
   createdAt      DateTime @default(now())
 
-  // INDEXES FOR SPEED
   @@index([supplierUrl, lastSourced(sort: Desc)])
   @@index([createdAt(sort: Desc)])
 }
