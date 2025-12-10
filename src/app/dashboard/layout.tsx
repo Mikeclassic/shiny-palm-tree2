@@ -1,17 +1,17 @@
 import Link from 'next/link';
 import { UserButton } from "@clerk/nextjs";
 import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus } from 'lucide-react';
-import DashboardMobileMenu from "@/components/DashboardMobileMenu"; // <--- Import this
+import DashboardMobileMenu from "@/components/DashboardMobileMenu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       
-      {/* DESKTOP SIDEBAR (Unchanged) */}
+      {/* DESKTOP SIDEBAR */}
       <aside className="w-64 bg-brand-900 border-r border-brand-800 hidden md:flex flex-col p-6 fixed h-full z-20 shadow-xl">
         <div className="flex items-center gap-3 mb-10 px-2">
-            <div className="bg-orange-500/10 p-2 rounded-lg">
-                <Zap className="text-orange-500 fill-orange-500" size={24} />
+            <div className="bg-action/10 p-2 rounded-lg">
+                <Zap className="text-action fill-action" size={24} />
             </div>
             <h1 className="text-xl font-bold text-white tracking-tight">GlowSeller</h1>
         </div>
@@ -36,25 +36,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full">
-        
-        {/* NEW MOBILE HEADER (Replaces the old div) */}
+      {/* FIX: p-4 on mobile, larger padding on desktop. md:ml-64 ensures desktop content pushes right */}
+      <main className="flex-1 md:ml-64 p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full relative">
         <DashboardMobileMenu />
-        
         {children}
       </main>
     </div>
   );
 }
 
-// Helper Component for consistent links (Desktop)
 function SidebarItem({ href, icon, label }: { href: string, icon: React.ReactNode, label: string }) {
     return (
         <Link 
             href={href} 
             className="flex items-center gap-3 p-3 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-all group"
         >
-            <span className="group-hover:text-orange-500 transition-colors">{icon}</span>
+            <span className="group-hover:text-action transition-colors">{icon}</span>
             <span className="font-medium">{label}</span>
         </Link>
     )
