@@ -13,20 +13,17 @@ export default function DashboardFilters({ topCategories, currentTab }: Dashboar
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Get initial values from URL
   const initialQ = searchParams.get("q") || "";
   const initialType = searchParams.get("type") || "all";
 
   const [query, setQuery] = useState(initialQ);
 
-  // Function to push new URL params
   const updateParams = (newQuery: string, newType: string) => {
     const params = new URLSearchParams();
     if (newQuery) params.set("q", newQuery);
     if (newType && newType !== "all") params.set("type", newType);
     params.set("tab", currentTab);
-    params.set("page", "1"); // Reset to page 1 on filter change
-    
+    params.set("page", "1");
     router.push(`/dashboard?${params.toString()}`);
   };
 
@@ -41,25 +38,25 @@ export default function DashboardFilters({ topCategories, currentTab }: Dashboar
   };
 
   return (
-    <form onSubmit={handleSearch} className="flex gap-4">
+    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
       {/* Search Input */}
       <div className="relative flex-1">
-        <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
+        <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
         <input 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products..." 
-          className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+          placeholder="Search products by keyword..." 
+          className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-action/50 focus:border-action transition shadow-sm"
         />
       </div>
       
       {/* Type Dropdown */}
-      <div className="relative w-64">
-        <Filter className="absolute left-4 top-3.5 text-gray-500" size={16} />
+      <div className="relative sm:w-64">
+        <Filter className="absolute left-4 top-3.5 text-slate-400" size={16} />
         <select 
           value={initialType}
           onChange={handleTypeChange}
-          className="w-full h-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-8 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer text-sm font-medium"
+          className="w-full h-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-700 focus:outline-none focus:ring-2 focus:ring-action/50 appearance-none cursor-pointer text-sm font-medium shadow-sm"
         >
           <option value="all">All Categories</option>
           <hr />
@@ -72,7 +69,7 @@ export default function DashboardFilters({ topCategories, currentTab }: Dashboar
       </div>
       
       {/* Search Button */}
-      <button type="submit" className="bg-white text-black font-bold px-6 rounded-xl hover:bg-gray-200 transition">
+      <button type="submit" className="bg-brand-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-800 transition shadow-lg shadow-brand-900/20 active:scale-95">
         Search
       </button>
     </form>
