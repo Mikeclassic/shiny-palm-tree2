@@ -10,8 +10,8 @@ export default function DashboardMobileMenu() {
 
   return (
     <>
-      {/* MOBILE HEADER BAR */}
-      <div className="md:hidden flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-4 z-40">
+      {/* MOBILE APP BAR (Fixed Top) */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsOpen(true)}
@@ -21,26 +21,25 @@ export default function DashboardMobileMenu() {
           </button>
           <div className="flex items-center gap-2">
             <div className="bg-brand-900 p-1.5 rounded-md">
-                <Zap className="text-white fill-white" size={14} />
+                <Zap className="text-white fill-white" size={16} />
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">GlowSeller</span>
+            <span className="font-bold text-brand-900 text-lg tracking-tight">GlowSeller</span>
           </div>
         </div>
         <UserButton afterSignOutUrl="/" />
       </div>
 
-      {/* MOBILE SIDEBAR OVERLAY */}
-      {/* Background Backdrop */}
+      {/* Spacer to push content down */}
+      <div className="h-16 md:hidden"></div>
+
+      {/* MOBILE SIDEBAR DRAWER */}
       <div 
         className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Sliding Sidebar Drawer */}
       <div className={`fixed top-0 left-0 h-full w-72 bg-brand-900 text-white z-50 transform transition-transform duration-300 ease-in-out md:hidden shadow-2xl flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        
-        {/* Drawer Header */}
-        <div className="p-6 flex items-center justify-between border-b border-brand-800">
+        <div className="p-5 flex items-center justify-between border-b border-brand-800 h-16">
             <div className="flex items-center gap-2">
                 <Zap className="text-orange-500 fill-orange-500" size={20} />
                 <span className="font-bold text-xl">GlowSeller</span>
@@ -50,7 +49,6 @@ export default function DashboardMobileMenu() {
             </button>
         </div>
 
-        {/* Navigation Links */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <MobileSidebarItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Product Feed" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" onClick={() => setIsOpen(false)} />
@@ -59,13 +57,11 @@ export default function DashboardMobileMenu() {
             <MobileSidebarItem href="/dashboard/billing" icon={<CreditCard size={20} />} label="Billing" onClick={() => setIsOpen(false)} />
         </nav>
 
-        {/* Drawer Footer */}
-        <div className="p-6 border-t border-brand-800 bg-brand-950/30">
+        <div className="p-4 border-t border-brand-800 bg-brand-950/30">
             <div className="flex items-center gap-3">
-                <UserButton afterSignOutUrl="/" />
                 <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white">My Account</span>
-                    <span className="text-xs text-brand-300">Pro Plan</span>
+                    <span className="text-xs font-medium text-slate-400">Signed in as</span>
+                    <span className="text-sm font-bold text-white">User</span>
                 </div>
             </div>
         </div>
@@ -74,7 +70,6 @@ export default function DashboardMobileMenu() {
   );
 }
 
-// Helper for mobile links
 function MobileSidebarItem({ href, icon, label, onClick }: { href: string, icon: React.ReactNode, label: string, onClick: () => void }) {
     return (
         <Link 
