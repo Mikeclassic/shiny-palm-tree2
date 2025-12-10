@@ -13,7 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="bg-action/10 p-2 rounded-lg">
                 <Zap className="text-action fill-action" size={24} />
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight">GlowSeller</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">ClearSeller</h1>
         </div>
         
         <nav className="space-y-1 flex-1">
@@ -35,8 +35,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      {/* FIX: p-4 on mobile, larger padding on desktop. md:ml-64 ensures desktop content pushes right */}
       <main className="flex-1 md:ml-64 p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full relative">
         <DashboardMobileMenu />
         {children}
