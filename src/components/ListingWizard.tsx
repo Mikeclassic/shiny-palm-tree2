@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type, FileText } from "lucide-react";
 import Image from "next/image";
 
@@ -41,6 +41,16 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const [supplierPrice, setSupplierPrice] = useState<string>(product.supplierPrice?.toString() || "");
   const [sellingPrice, setSellingPrice] = useState<string>(product.price.toString());
   const [profit, setProfit] = useState<number | null>(null);
+
+  // SCROLL REF FOR RESETTING SCROLL POSITION
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll when tab changes
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTo(0, 0);
+    }
+  }, [activeTab]);
 
   // Profit Calculation
   useEffect(() => {
@@ -153,8 +163,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
+    // FIX: Removed 'items-end', added 'h-full' to ensure full screen usage on mobile
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center sm:p-4 overflow-hidden">
+      
+      {/* Container: 100dvh for mobile (full viewport), rounded only on desktop */}
+      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden">
         
         {/* HEADER */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
@@ -203,8 +216,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             </button>
         </div>
 
-        {/* CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30">
+        {/* CONTENT AREA (With Ref for Scroll Reset) */}
+        <div 
+            ref={contentRef} 
+            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30"
+        >
             
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
@@ -229,7 +245,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             </div>
                         </div>
 
-                        {/* VISIBLE ON MOBILE NOW */}
                         <div className="flex-col min-h-0 flex">
                             <label className="text-xs text-slate-500 uppercase font-bold mb-2 flex gap-2 items-center"><FileText size={12}/> Original Source</label>
                             <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-y-auto custom-scrollbar shadow-sm h-32 sm:max-h-48 lg:flex-1">
@@ -405,7 +420,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
         </div>
 
-        {/* FIXED STICKY FOOTER (Primary Actions) */}
+        {/* FIXED FOOTER (Primary Actions) */}
         {activeTab !== "profit" && (
             <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] absolute bottom-0 left-0 right-0">
                 {activeTab === "text" && (
