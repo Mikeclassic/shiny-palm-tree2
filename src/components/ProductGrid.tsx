@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-// IMPORT NEXT IMAGE
 import Image from "next/image"; 
 import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles } from "lucide-react"; 
 import ListingWizard from "./ListingWizard";
@@ -11,9 +10,9 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
 
   if (initialProducts.length === 0) {
     return (
-        <div className="p-20 border border-dashed border-gray-800 rounded-xl text-center text-gray-500 bg-gray-900/20">
+        <div className="p-20 border border-dashed border-slate-300 rounded-xl text-center text-slate-500 bg-white">
             <Search size={48} className="mx-auto mb-4 opacity-20" />
-            <p className="text-xl font-medium">No products found in this category.</p>
+            <p className="text-xl font-medium">No products found.</p>
         </div>
     );
   }
@@ -27,76 +26,78 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                 const manualLensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}`;
 
                 return (
-                <div key={product.id} className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500/50 transition duration-300 flex flex-col relative h-full">
-                    <div className="h-64 relative overflow-hidden bg-black">
-                        {/* OPTIMIZED IMAGE COMPONENT */}
+                <div key={product.id} className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:border-brand-200 transition-all duration-300 flex flex-col relative h-full">
+                    {/* IMAGE AREA */}
+                    <div className="h-64 relative overflow-hidden bg-slate-100">
                         <Image 
                             src={product.imageUrl} 
                             alt={product.title}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                            className="object-cover group-hover:scale-110 transition duration-500"
+                            className="object-cover group-hover:scale-105 transition duration-700"
                             loading="lazy"
                         />
                         
                         {product.aesthetic && (
-                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10 z-10">
+                            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-brand-900 border border-slate-200 shadow-sm z-10 uppercase tracking-wider">
                                 {product.aesthetic}
                             </div>
                         )}
 
                         <button 
                             onClick={() => setSelectedProduct(product)}
-                            className="absolute bottom-3 right-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-[0_4px_15px_rgba(139,92,246,0.4)] transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs z-10"
+                            className="absolute bottom-3 right-3 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white shadow-lg transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs z-10"
                         >
-                            <Sparkles size={14} className="text-yellow-300 fill-yellow-300" /> Generate Listing
+                            <Sparkles size={14} className="text-yellow-300 fill-yellow-300" /> Listing Studio
                         </button>
                     </div>
                     
-                    {/* ... Rest of the component remains exactly the same ... */}
+                    {/* DETAILS AREA */}
                     <div className="p-5 flex flex-col flex-1">
-                        <h3 className="font-bold text-sm line-clamp-2 mb-4 h-10 leading-tight" title={product.title}>
+                        <h3 className="font-bold text-slate-800 text-sm line-clamp-2 mb-4 h-10 leading-snug" title={product.title}>
                             {product.title}
                         </h3>
                         
-                        <div className="mt-auto pt-4 border-t border-gray-800 space-y-3">
+                        <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
                             <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Resell Price</span>
-                                <span className="text-xl font-mono text-white">${product.price}</span>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Resell Price</span>
+                                <span className="text-xl font-extrabold text-brand-900">${product.price}</span>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
+                                {/* PRIMARY ACTION */}
                                 {hasSupplier ? (
                                     <a 
                                         href={product.supplierUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="col-span-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-[10px] font-bold transition shadow-lg shadow-green-900/20 px-2 text-center"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-green-100 hover:bg-green-200 text-green-700 py-2.5 rounded-lg text-[10px] font-bold transition px-2 text-center"
                                     >
-                                        <ExternalLink size={12} /> View Stock 📦
+                                        <ExternalLink size={12} /> View Stock
                                     </a>
                                 ) : botChecked ? (
                                     <a 
                                         href={manualLensUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="col-span-1 flex items-center justify-center gap-1 bg-gray-800 hover:bg-gray-700 text-orange-400 py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-700 px-2 text-center"
+                                        className="col-span-1 flex items-center justify-center gap-1 bg-orange-50 hover:bg-orange-100 text-orange-600 py-2.5 rounded-lg text-[10px] font-bold transition border border-orange-200 px-2 text-center"
                                     >
-                                        <Search size={12} /> Deep Search 🔎
+                                        <Search size={12} /> Deep Search
                                     </a>
                                 ) : (
-                                    <div className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 text-gray-500 py-2.5 rounded-xl text-[10px] font-bold border border-gray-800 cursor-wait px-2 text-center">
-                                        <Loader2 size={12} className="animate-spin" /> AI Hunting...
+                                    <div className="col-span-1 flex items-center justify-center gap-1 bg-slate-100 text-slate-400 py-2.5 rounded-lg text-[10px] font-bold cursor-wait px-2 text-center">
+                                        <Loader2 size={12} className="animate-spin" /> Hunting...
                                     </div>
                                 )}
 
+                                {/* SECONDARY ACTION */}
                                 <a 
                                     href={product.sourceUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="col-span-1 flex items-center justify-center gap-1 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold transition border border-gray-800 px-2 text-center"
+                                    className="col-span-1 flex items-center justify-center gap-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 py-2.5 rounded-lg text-[10px] font-bold transition px-2 text-center"
                                 >
-                                    <Eye size={12} /> Spy Competitor
+                                    <Eye size={12} /> Competitor
                                 </a>
                             </div>
                         </div>
