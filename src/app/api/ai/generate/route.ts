@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    // 1. Check Authentication
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { title, originalDesc, tone } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 
@@ -38,8 +46,8 @@ export async function POST(req: Request) {
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://clearseller.com", // Updated
-        "X-Title": "ClearSeller", // Updated
+        "HTTP-Referer": "https://clearseller.com",
+        "X-Title": "ClearSeller",
       },
       body: JSON.stringify(payload)
     });
