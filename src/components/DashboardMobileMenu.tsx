@@ -10,29 +10,23 @@ export default function DashboardMobileMenu() {
 
   return (
     <>
-      {/* MOBILE APP BAR (Fixed Top) */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsOpen(true)}
-            className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
-          >
+          <button onClick={() => setIsOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-2">
             <div className="bg-brand-900 p-1.5 rounded-md">
                 <Zap className="text-white fill-white" size={16} />
             </div>
-            <span className="font-bold text-brand-900 text-lg tracking-tight">GlowSeller</span>
+            <span className="font-bold text-brand-900 text-lg tracking-tight">ClearSeller</span>
           </div>
         </div>
         <UserButton afterSignOutUrl="/" />
       </div>
 
-      {/* Spacer to push content down */}
       <div className="h-16 md:hidden"></div>
 
-      {/* MOBILE SIDEBAR DRAWER */}
       <div 
         className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsOpen(false)}
@@ -42,7 +36,7 @@ export default function DashboardMobileMenu() {
         <div className="p-5 flex items-center justify-between border-b border-brand-800 h-16">
             <div className="flex items-center gap-2">
                 <Zap className="text-orange-500 fill-orange-500" size={20} />
-                <span className="font-bold text-xl">GlowSeller</span>
+                <span className="font-bold text-xl">ClearSeller</span>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition">
                 <X size={24} />
