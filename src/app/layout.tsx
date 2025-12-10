@@ -4,7 +4,6 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { cn } from '@/lib/utils'
 
-// Load Inter font with "swap" strategy for performance
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
@@ -12,11 +11,11 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'GlowSeller | #1 Dropshipping Automation Tool',
+  title: 'ClearSeller | #1 Dropshipping Automation Tool',
   description: 'Automate your dropshipping business. Find winning products, generate AI listings, and edit photos in seconds.',
   keywords: ['dropshipping', 'automation', 'AI writer', 'background remover', 'product research'],
   openGraph: {
-    title: 'GlowSeller - Launch Your Store in 2 Minutes',
+    title: 'ClearSeller - Launch Your Store in 2 Minutes',
     description: 'Stop wasting time on manual work. Automate your sourcing and listings today.',
     type: 'website',
   }
