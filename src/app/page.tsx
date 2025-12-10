@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Container } from "@/components/ui/Container";
 import { FeatureSection } from "@/components/landing/FeatureSection";
 import { Testimonials } from "@/components/landing/Testimonials";
+import { PricingSection } from "@/components/landing/PricingSection"; // <--- Import
 
 export default function LandingPage() {
   return (
@@ -72,7 +73,6 @@ export default function LandingPage() {
             Trusted by 10,000+ Dropshippers scaling on
           </p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-             {/* Replace with SVGs in production */}
             {['Shopify', 'TikTok Shop', 'Depop', 'WooCommerce', 'Etsy'].map((brand) => (
               <div key={brand} className="flex items-center justify-center font-bold text-xl text-slate-400 cursor-default hover:text-brand-900 transition">
                 {brand}
@@ -120,6 +120,9 @@ export default function LandingPage() {
             imageLabel="Background Changer Tool"
         />
       </div>
+
+      {/* --- PRICING SECTION --- */}
+      <PricingSection />
 
       {/* --- TESTIMONIALS --- */}
       <Testimonials />
