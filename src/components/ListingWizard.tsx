@@ -162,9 +162,16 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center sm:p-4 overflow-hidden">
+    // WRAPPER: z-50 to sit on top.
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center sm:p-4">
       
-      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden relative">
+      {/* 
+          MODAL CARD FIX:
+          - 'fixed inset-0' forces it to fill the mobile screen completely (0 margins).
+          - 'sm:relative' switches it back to a normal div on desktop.
+          - 'w-full h-full' ensures it takes available space.
+      */}
+      <div className="bg-white w-full h-full fixed inset-0 sm:relative sm:inset-auto sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border-0 sm:border border-slate-200 overflow-hidden">
         
         {/* HEADER */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
@@ -213,7 +220,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             </button>
         </div>
 
-        {/* CONTENT AREA (With extra padding-bottom to clear sticky footer) */}
+        {/* CONTENT AREA (Scrollable) */}
         <div 
             ref={contentRef} 
             className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30 pb-32" 
@@ -222,7 +229,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
-                    {/* CONTROLS */}
+                    
+                    {/* LEFT: CONTROLS */}
                     <div className="lg:col-span-1 space-y-4 flex flex-col shrink-0 order-1 lg:order-1">
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-2 flex items-center gap-2">
@@ -251,7 +259,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         </div>
                     </div>
 
-                    {/* EDITOR */}
+                    {/* RIGHT: EDITOR */}
                     <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px] order-2 lg:order-2">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-2">Optimized Content</label>
                         <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
@@ -285,8 +293,26 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             {activeTab === "media" && (
                 <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6">
                     
-                    {/* PREVIEW (Top on Mobile) */}
-                    <div className="lg:col-span-1 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] order-1">
+                    {/* CONTROLS (Left/Top) */}
+                    <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
+                        <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
+                        {/* UPDATE: NO MAX HEIGHT, NO SCROLLBAR */}
+                        <div className="grid grid-cols-2 gap-3 pb-8">
+                            {SCENE_TEMPLATES.map(t => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => setSelectedTemplate(t)}
+                                    className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-200' : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'}`}
+                                >
+                                    <span className="text-[11px] font-bold block mb-1 text-slate-900">{t.name}</span>
+                                    <span className="text-[10px] text-slate-500 line-clamp-1">{t.prompt.substring(0, 30)}...</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* PREVIEW (Right/Bottom) */}
+                    <div className="lg:col-span-1 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
                                 <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
@@ -312,24 +338,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             </div>
                         )}
                     </div>
-
-                    {/* CONTROLS (Bottom on Mobile - Expanded List) */}
-                    <div className="lg:col-span-1 flex flex-col shrink-0 order-2">
-                        <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        {/* Removed max-height and overflow hidden. It now expands naturally. */}
-                        <div className="grid grid-cols-2 gap-3 pb-8">
-                            {SCENE_TEMPLATES.map(t => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => setSelectedTemplate(t)}
-                                    className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-200' : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'}`}
-                                >
-                                    <span className="text-[11px] font-bold block mb-1 text-slate-900">{t.name}</span>
-                                    <span className="text-[10px] text-slate-500 line-clamp-1">{t.prompt.substring(0, 30)}...</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </div>
             )}
 
@@ -350,7 +358,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                         type="number" 
                                         value={supplierPrice} 
                                         onChange={(e) => setSupplierPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition"
                                         placeholder="0.00"
                                     />
                                 </div>
@@ -363,7 +371,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                         type="number" 
                                         value={sellingPrice} 
                                         onChange={(e) => setSellingPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition"
                                     />
                                 </div>
                             </div>
@@ -404,7 +412,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </div>
                             )}
 
-                             {/* DEEP SEARCH LINK (Always Visible Now) */}
+                             {/* DEEP SEARCH LINK */}
                              <a 
                                 href={manualSearchUrl} 
                                 target="_blank" 
