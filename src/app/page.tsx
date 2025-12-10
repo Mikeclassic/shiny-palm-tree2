@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer"; // <--- Import
 import { Container } from "@/components/ui/Container";
 import { FeatureSection } from "@/components/landing/FeatureSection";
 import { Testimonials } from "@/components/landing/Testimonials";
-import { PricingSection } from "@/components/landing/PricingSection"; // <--- Import
+import { PricingSection } from "@/components/landing/PricingSection";
 
 export default function LandingPage() {
   return (
@@ -39,7 +40,7 @@ export default function LandingPage() {
                     Start Free Trial <ArrowRight size={20} />
                   </button>
                 </Link>
-                <Link href="#demo" className="w-full sm:w-auto">
+                <Link href="#features" className="w-full sm:w-auto">
                   <button className="w-full sm:w-auto bg-white border border-gray-200 hover:bg-gray-50 text-slate-700 text-lg px-8 py-4 rounded-xl font-bold transition-colors">
                     View Demo
                   </button>
@@ -83,7 +84,7 @@ export default function LandingPage() {
       </section>
 
       {/* --- FEATURES (ZIG ZAG) --- */}
-      <div id="product" className="bg-slate-50/50">
+      <div id="features" className="bg-slate-50/50">
         <FeatureSection 
             title="Find Winning Products Before They Go Viral"
             description="Our bot scrapes 300+ top Shopify stores daily to find trending items. We automatically match them with suppliers on AliExpress so you can source instantly."
@@ -148,6 +149,8 @@ export default function LandingPage() {
           </Container>
       </section>
 
+      {/* --- FOOTER --- */}
+      <Footer />
     </div>
   );
 }
