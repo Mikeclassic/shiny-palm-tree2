@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -14,8 +14,9 @@
     "backfill": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/fill-descriptions.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^5.0.0",
+    "next-auth": "^4.24.5",
     "@prisma/client": "^5.10.2",
+    "@prisma/adapter-pg": "^5.10.2",
     "@openrouter/sdk": "^0.0.1",
     "cheerio": "^1.0.0-rc.12",
     "lucide-react": "^0.344.0",
