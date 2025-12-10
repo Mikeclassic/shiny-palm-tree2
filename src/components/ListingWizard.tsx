@@ -44,14 +44,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Scroll Reset
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTo(0, 0);
     }
   }, [activeTab]);
 
-  // Profit Calculation
   useEffect(() => {
     const sell = parseFloat(sellingPrice) || 0;
     const cost = parseFloat(supplierPrice) || 0;
@@ -162,11 +160,9 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    // WRAPPER: Full screen fixed overlay. No padding on mobile (p-0), padded on desktop (sm:p-4)
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-0 sm:p-4 overflow-hidden">
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center sm:p-4 overflow-hidden">
       
-      {/* MODAL CARD: h-full ensures it stretches to bottom on mobile. sm:h-[90vh] restricts it on desktop */}
-      <div className="bg-white w-full h-full sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border-0 sm:border border-slate-200 overflow-hidden">
+      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden">
         
         {/* HEADER */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
@@ -215,15 +211,15 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             </button>
         </div>
 
-        {/* CONTENT AREA (Scrollable & Padded for Footer) */}
+        {/* CONTENT AREA */}
         <div 
             ref={contentRef} 
-            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30 pb-28" // Extra padding bottom for sticky footer
+            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30 pb-28" 
         >
             
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 pb-24">
                     
                     {/* LEFT: CONTROLS */}
                     <div className="lg:col-span-1 space-y-4 flex flex-col shrink-0 order-1 lg:order-1">
@@ -267,7 +263,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             ) : (
                                 <div className="h-full min-h-[250px] flex flex-col items-center justify-center text-slate-400">
                                     <Type size={48} className="mb-4 opacity-20" />
-                                    <p className="text-sm font-medium">Select a tone and click Rewrite</p>
+                                    <p className="text-sm font-medium">Select a tone and click Generate</p>
                                 </div>
                             )}
                             
@@ -286,12 +282,14 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 2: MAGIC STUDIO --- */}
             {activeTab === "media" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+                // UPDATE: Changed to 50/50 split (grid-cols-2)
+                <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 pb-24">
                     
-                    {/* CONTROLS */}
+                    {/* CONTROLS (Left/Top) */}
                     <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[250px] lg:max-h-[400px] lg:flex-1">
+                        {/* UPDATE: Hidden scrollbar utility added */}
+                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] max-h-[250px] lg:max-h-[400px] lg:flex-1">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
                                     key={t.id}
@@ -305,8 +303,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         </div>
                     </div>
 
-                    {/* PREVIEW */}
-                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
+                    {/* PREVIEW (Right/Bottom) */}
+                    <div className="lg:col-span-1 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
                                 <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
@@ -337,7 +335,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 3: PROFIT --- */}
             {activeTab === "profit" && (
-                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in pt-4">
+                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in pt-4 pb-24">
                     <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm">
                         <div className="flex items-center gap-2 text-brand-600 mb-6">
                             <div className="p-2 bg-brand-50 rounded-lg"><Calculator size={20} /></div>
@@ -403,15 +401,21 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             ) : (
                                 <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center">
                                     <p className="text-slate-500 text-sm mb-3">No automated match found.</p>
-                                    <a 
-                                        href={manualSearchUrl} 
-                                        target="_blank" 
-                                        className="inline-flex items-center gap-2 text-brand-600 hover:text-brand-800 font-bold text-sm bg-white border border-brand-200 px-4 py-2 rounded-lg hover:border-brand-300 transition shadow-sm"
-                                    >
-                                        <Search size={14} /> Perform Deep Search
-                                    </a>
                                 </div>
                             )}
+
+                            {/* UPDATE: Deep Search Button Always Visible */}
+                            <a 
+                                href={manualSearchUrl} 
+                                target="_blank" 
+                                className="flex items-center justify-between p-4 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="bg-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wide">Manual</span>
+                                    <span className="text-sm font-semibold text-orange-800 group-hover:text-orange-900">Deep Supplier Search</span>
+                                </div>
+                                <Search size={16} className="text-orange-600" />
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -421,7 +425,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
         {/* FIXED FOOTER (Primary Actions) */}
         {activeTab !== "profit" && (
-            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] absolute bottom-0 left-0 right-0">
                 {activeTab === "text" && (
                      <button 
                         onClick={optimizeWithAI} 
@@ -429,7 +433,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50"
                     >
                         {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                        {loadingText ? "Rewriting..." : "Rewrite Description"}
+                        {loadingText ? "Rewriting..." : "Generate High-Converting Copy ✨"}
                     </button>
                 )}
                 {activeTab === "media" && (
