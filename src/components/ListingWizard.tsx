@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type, FileText } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Type, FileText } from "lucide-react";
 import Image from "next/image";
 
 const SCENE_TEMPLATES = [
@@ -42,17 +42,14 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const [sellingPrice, setSellingPrice] = useState<string>(product.price.toString());
   const [profit, setProfit] = useState<number | null>(null);
 
-  // SCROLL REF FOR RESETTING SCROLL POSITION
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Reset scroll when tab changes
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTo(0, 0);
     }
   }, [activeTab]);
 
-  // Profit Calculation
   useEffect(() => {
     const sell = parseFloat(sellingPrice) || 0;
     const cost = parseFloat(supplierPrice) || 0;
@@ -163,13 +160,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    // FIX: Removed 'items-end', added 'h-full' to ensure full screen usage on mobile
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center sm:p-4 overflow-hidden">
       
-      {/* Container: 100dvh for mobile (full viewport), rounded only on desktop */}
+      {/* MAIN CONTAINER: Flex Column Layout */}
       <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden">
         
-        {/* HEADER */}
+        {/* 1. HEADER (Fixed Height) */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
           <div className="flex items-center gap-3">
              <div className="h-10 w-10 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
@@ -178,7 +174,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
              <div className="min-w-0">
                 <h3 className="font-bold text-slate-900 text-sm truncate max-w-[150px] sm:max-w-md">{product.title}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-bold border border-brand-100 whitespace-nowrap">
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold border border-slate-200 whitespace-nowrap">
                         {category}
                     </span>
                 </div>
@@ -194,29 +190,14 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
           </div>
         </div>
 
-        {/* TABS */}
+        {/* 2. TABS (Fixed Height) */}
         <div className="flex border-b border-slate-200 bg-slate-50/50 overflow-x-auto shrink-0 no-scrollbar">
-            <button 
-                onClick={() => setActiveTab("text")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
-            >
-                <Type size={16} /> AI Copywriter
-            </button>
-            <button 
-                onClick={() => setActiveTab("media")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "media" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
-            >
-                <ImageIcon size={16} /> Magic Studio
-            </button>
-            <button 
-                onClick={() => setActiveTab("profit")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-            >
-                <DollarSign size={16} /> Profit
-            </button>
+            <button onClick={() => setActiveTab("text")} className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}><Type size={16} /> AI Copywriter</button>
+            <button onClick={() => setActiveTab("media")} className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "media" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}><ImageIcon size={16} /> Magic Studio</button>
+            <button onClick={() => setActiveTab("profit")} className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}><DollarSign size={16} /> Profit</button>
         </div>
 
-        {/* CONTENT AREA (With Ref for Scroll Reset) */}
+        {/* 3. CONTENT AREA (Flexible Height - Scrolls) */}
         <div 
             ref={contentRef} 
             className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30"
@@ -224,23 +205,15 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 pb-24">
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
                     
                     {/* LEFT: CONTROLS */}
                     <div className="lg:col-span-1 space-y-4 flex flex-col shrink-0 order-1 lg:order-1">
                         <div>
-                            <label className="text-xs text-slate-500 uppercase font-bold mb-2 flex items-center gap-2">
-                                <Wand2 size={12} /> Tone of Voice
-                            </label>
+                            <label className="text-xs text-slate-500 uppercase font-bold mb-2 flex items-center gap-2"><Wand2 size={12} /> Tone of Voice</label>
                             <div className="grid grid-cols-2 gap-2">
                                 {["Persuasive", "Luxury", "Viral", "Friendly", "Professional", "Minimalist"].map(opt => (
-                                    <button 
-                                        key={opt} 
-                                        onClick={() => setTone(opt)} 
-                                        className={`py-2 text-[10px] sm:text-xs rounded-lg border font-medium transition ${tone === opt ? "bg-slate-900 border-slate-900 text-white shadow-md" : "bg-white border-slate-200 text-slate-600 hover:border-brand-300"}`}
-                                    >
-                                        {opt}
-                                    </button>
+                                    <button key={opt} onClick={() => setTone(opt)} className={`py-2 text-[10px] sm:text-xs rounded-lg border font-medium transition ${tone === opt ? "bg-slate-900 border-slate-900 text-white shadow-md" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"}`}>{opt}</button>
                                 ))}
                             </div>
                         </div>
@@ -248,9 +221,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <div className="flex-col min-h-0 flex">
                             <label className="text-xs text-slate-500 uppercase font-bold mb-2 flex gap-2 items-center"><FileText size={12}/> Original Source</label>
                             <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-y-auto custom-scrollbar shadow-sm h-32 sm:max-h-48 lg:flex-1">
-                                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">
-                                    {product.originalDesc || product.title}
-                                </p>
+                                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">{product.originalDesc || product.title}</p>
                             </div>
                         </div>
                     </div>
@@ -258,7 +229,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     {/* RIGHT: EDITOR */}
                     <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px] order-2 lg:order-2">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-2">Optimized Content</label>
-                        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
+                        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm transition">
                             {currentDesc ? (
                                 <textarea 
                                     value={currentDesc}
@@ -287,18 +258,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 2: MAGIC STUDIO --- */}
             {activeTab === "media" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 pb-24">
-                    
-                    {/* CONTROLS */}
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
                         <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[250px] lg:max-h-[400px] lg:flex-1">
                             {SCENE_TEMPLATES.map(t => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => setSelectedTemplate(t)}
-                                    className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-200' : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'}`}
-                                >
+                                <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-200' : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'}`}>
                                     <span className="text-[11px] font-bold block mb-1 text-slate-900">{t.name}</span>
                                     <span className="text-[10px] text-slate-500 line-clamp-1">{t.prompt.substring(0, 30)}...</span>
                                 </button>
@@ -306,7 +271,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         </div>
                     </div>
 
-                    {/* PREVIEW */}
                     <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
@@ -314,21 +278,15 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                     <img src={resultImage} className="w-full h-full object-contain" alt="Result" />
                                 </div>
                                 <div className="absolute bottom-6 flex gap-3">
-                                    <button onClick={handleDownload} className="bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-50 border border-slate-200 shadow-lg">
-                                        <Download size={14} /> HD
-                                    </button>
-                                    <button onClick={() => setResultImage("")} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold hover:bg-slate-800 shadow-lg">
-                                        Reset
-                                    </button>
+                                    <button onClick={handleDownload} className="bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-50 border border-slate-200 shadow-lg"><Download size={14} /> HD</button>
+                                    <button onClick={() => setResultImage("")} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold hover:bg-slate-800 shadow-lg">Reset</button>
                                 </div>
                             </div>
                         ) : (
                             <div className="relative w-full h-full p-8 flex items-center justify-center transition duration-500">
                                 <div className="relative w-full max-w-sm aspect-square bg-white rounded-xl shadow-xl p-4 border border-slate-200">
                                     <Image src={product.imageUrl} alt="Original" fill className="object-contain p-4" />
-                                    <div className="absolute inset-x-0 bottom-4 text-center">
-                                        <span className="bg-slate-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-medium shadow-sm">Original Image</span>
-                                    </div>
+                                    <div className="absolute inset-x-0 bottom-4 text-center"><span className="bg-slate-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-medium shadow-sm">Original Image</span></div>
                                 </div>
                             </div>
                         )}
@@ -338,107 +296,43 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 3: PROFIT --- */}
             {activeTab === "profit" && (
-                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 pt-4 pb-24">
+                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in pt-4">
                     <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm">
-                        <div className="flex items-center gap-2 text-brand-600 mb-6">
-                            <div className="p-2 bg-brand-50 rounded-lg"><Calculator size={20} /></div>
-                            <h3 className="font-bold text-lg text-slate-900">Profit Calculator</h3>
-                        </div>
+                        <div className="flex items-center gap-2 text-slate-900 mb-6"><Calculator size={20} /><h3 className="font-bold text-lg">Profit Calculator</h3></div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 items-end">
                             <div>
                                 <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Supplier Cost</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-3 text-slate-400">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={supplierPrice} 
-                                        onChange={(e) => setSupplierPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
-                                        placeholder="0.00"
-                                    />
-                                </div>
+                                <div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input type="number" value={supplierPrice} onChange={(e) => setSupplierPrice(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition" placeholder="0.00" /></div>
                             </div>
                             <div>
                                 <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Selling Price</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-3 text-slate-400">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={sellingPrice} 
-                                        onChange={(e) => setSellingPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
-                                    />
-                                </div>
+                                <div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition" /></div>
                             </div>
-                            <div className="bg-brand-900 rounded-xl p-4 text-right shadow-lg shadow-brand-900/20">
-                                <p className="text-[10px] text-brand-200 uppercase font-bold mb-1">Net Profit</p>
-                                <p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-white'}`}>
-                                    {profit ? `$${profit}` : "--"}
-                                </p>
-                            </div>
+                            <div className="bg-slate-900 rounded-xl p-4 text-right shadow-lg"><p className="text-[10px] text-slate-300 uppercase font-bold mb-1">Net Profit</p><p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-white'}`}>{profit ? `$${profit}` : "--"}</p></div>
                         </div>
                     </div>
-
                     <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm">
-                        <div className="flex items-center gap-2 text-orange-600 mb-6">
-                            <div className="p-2 bg-orange-50 rounded-lg"><ExternalLink size={20} /></div>
-                            <h3 className="font-bold text-lg text-slate-900">Sourcing Links</h3>
-                        </div>
+                        <div className="flex items-center gap-2 text-slate-900 mb-6"><ExternalLink size={20} /><h3 className="font-bold text-lg">Sourcing Links</h3></div>
                         <div className="space-y-4">
-                            <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition group">
-                                <div className="flex items-center gap-3">
-                                    <span className="bg-slate-200 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-600 uppercase tracking-wide">Competitor</span>
-                                    <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">View Original Listing</span>
-                                </div>
-                                <ExternalLink size={16} className="text-slate-400 group-hover:text-slate-600" />
-                            </a>
-
-                            {product.supplierUrl ? (
-                                <a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100/80 hover:border-green-300 transition group shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-green-600 px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wide">Supplier</span>
-                                        <span className="text-sm font-semibold text-green-800 group-hover:text-green-900">Buy on AliExpress</span>
-                                    </div>
-                                    <ExternalLink size={16} className="text-green-600 group-hover:text-green-800" />
-                                </a>
-                            ) : (
-                                <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center">
-                                    <p className="text-slate-500 text-sm mb-3">No automated match found.</p>
-                                    <a 
-                                        href={manualSearchUrl} 
-                                        target="_blank" 
-                                        className="inline-flex items-center gap-2 text-brand-600 hover:text-brand-800 font-bold text-sm bg-white border border-brand-200 px-4 py-2 rounded-lg hover:border-brand-300 transition shadow-sm"
-                                    >
-                                        <Search size={14} /> Perform Deep Search
-                                    </a>
-                                </div>
-                            )}
+                            <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition group"><div className="flex items-center gap-3"><span className="bg-slate-200 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-600 uppercase tracking-wide">Competitor</span><span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">View Original Listing</span></div><ExternalLink size={16} className="text-slate-400 group-hover:text-slate-600" /></a>
+                            {product.supplierUrl ? (<a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100/80 transition group shadow-sm"><div className="flex items-center gap-3"><span className="bg-green-600 px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wide">Supplier</span><span className="text-sm font-semibold text-green-800 group-hover:text-green-900">Buy on AliExpress</span></div><ExternalLink size={16} className="text-green-600 group-hover:text-green-800" /></a>) : (<div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center"><p className="text-slate-500 text-sm mb-3">No automated match found.</p><a href={manualSearchUrl} target="_blank" className="inline-flex items-center gap-2 text-slate-700 hover:text-slate-900 font-bold text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg hover:border-slate-300 transition shadow-sm"><Search size={14} /> Perform Deep Search</a></div>)}
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
 
-        {/* FIXED FOOTER (Primary Actions) */}
+        {/* 4. FOOTER (Fixed Height, Always Visible) */}
         {activeTab !== "profit" && (
-            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] absolute bottom-0 left-0 right-0">
+            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                 {activeTab === "text" && (
-                     <button 
-                        onClick={optimizeWithAI} 
-                        disabled={loadingText}
-                        className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95"
-                    >
+                     <button onClick={optimizeWithAI} disabled={loadingText} className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50">
                         {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
                         {loadingText ? "Rewriting..." : "Rewrite Description"}
                     </button>
                 )}
                 {activeTab === "media" && (
-                    <button 
-                        onClick={generateBackground}
-                        disabled={loadingImage}
-                        className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95"
-                    >
+                    <button onClick={generateBackground} disabled={loadingImage} className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50">
                         {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
                         {loadingImage ? "Rendering Scene..." : "Generate Image"}
                     </button>
