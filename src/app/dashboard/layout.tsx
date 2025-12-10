@@ -1,9 +1,13 @@
+"use client"; // Needs to be client for useSession now
+
 import Link from 'next/link';
-import { UserButton } from "@clerk/nextjs";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus } from 'lucide-react';
+import { useSession, signOut } from "next-auth/react";
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut } from 'lucide-react';
 import DashboardMobileMenu from "@/components/DashboardMobileMenu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       
@@ -25,12 +29,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="pt-6 border-t border-brand-800">
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-brand-800/50 hover:bg-brand-800 transition cursor-pointer">
-                <UserButton afterSignOutUrl="/" />
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white">My Account</span>
-                    <span className="text-xs text-brand-200">Pro Plan</span>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-brand-800/50 border border-brand-800">
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="h-8 w-8 rounded-full bg-brand-950 flex items-center justify-center text-xs font-bold text-brand-200 shrink-0 overflow-hidden">
+                        {session?.user?.image ? (
+                            <img src={session.user.image} alt="U" className="h-full w-full object-cover" />
+                        ) : (
+                            session?.user?.name?.[0] || "U"
+                        )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate">{session?.user?.name?.split(' ')[0]}</span>
+                        <span className="text-[10px] text-brand-300">Pro Plan</span>
+                    </div>
                 </div>
+                <button onClick={() => signOut()} className="text-slate-400 hover:text-white transition">
+                    <LogOut size={16} />
+                </button>
             </div>
         </div>
       </aside>
