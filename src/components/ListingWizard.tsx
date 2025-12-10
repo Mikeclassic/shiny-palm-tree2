@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type } from "lucide-react";
 import Image from "next/image";
 
-// DIVERSE DROPSHIPPING TEMPLATES
 const SCENE_TEMPLATES = [
   { id: 't1', name: 'White Podium', prompt: 'a pristine white round podium, professional studio lighting, minimalist' },
   { id: 't2', name: 'Luxury Marble', prompt: 'a luxury white marble surface with soft window reflection, premium feel' },
@@ -28,19 +27,17 @@ interface ListingWizardProps {
 export default function ListingWizard({ product, onClose }: ListingWizardProps) {
   const [activeTab, setActiveTab] = useState<"text" | "media" | "profit">("text");
 
-  // --- TAB 1: AI COPYWRITER ---
+  // STATE
   const [tone, setTone] = useState(product.style || "Persuasive");
   const [category, setCategory] = useState(product.era || "General");
   const [currentDesc, setCurrentDesc] = useState(product.generatedDesc || "");
   const [loadingText, setLoadingText] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // --- TAB 2: MAGIC STUDIO ---
   const [selectedTemplate, setSelectedTemplate] = useState(SCENE_TEMPLATES[0]);
   const [resultImage, setResultImage] = useState(product.generatedImage || ""); 
   const [loadingImage, setLoadingImage] = useState(false);
 
-  // --- TAB 3: PROFIT STATE ---
   const [supplierPrice, setSupplierPrice] = useState<string>(product.supplierPrice?.toString() || "");
   const [sellingPrice, setSellingPrice] = useState<string>(product.price.toString());
   const [profit, setProfit] = useState<number | null>(null);
@@ -57,7 +54,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   }, [supplierPrice, sellingPrice]);
 
-  // --- MASTER SAVE FUNCTION ---
+  // ACTIONS
   const saveEverything = async () => {
     try {
         await fetch("/api/product/save", {
@@ -87,10 +84,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      
       setCurrentDesc(data); 
-      
-      // Auto-save
       await fetch("/api/product/save", {
         method: "POST",
         body: JSON.stringify({
@@ -99,7 +93,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             preferences: { style: tone }
         })
       });
-
     } catch (e: any) {
       alert(`Optimization Failed: ${e.message}`);
     } finally {
@@ -110,7 +103,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const generateBackground = async () => {
     setLoadingImage(true);
     const finalPrompt = `Change the background with ${selectedTemplate.prompt}`;
-
     try {
         const res = await fetch("/api/ai/background-change", {
             method: "POST",
@@ -122,7 +114,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         const data = await res.json();
         if (data.output) {
             setResultImage(data.output);
-            
             await fetch("/api/product/save", {
                 method: "POST",
                 body: JSON.stringify({
@@ -131,7 +122,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     preferences: { style: tone }
                 })
             });
-
         } else {
             alert("AI Failed to process image.");
         }
@@ -163,66 +153,67 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
+    // FIX: Use 100dvh for mobile to avoid address bar issues, rounded-none on mobile for full immersion
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-[90vh] sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
         
         {/* HEADER */}
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-          <div className="flex items-center gap-4">
-             <div className="h-12 w-12 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+          <div className="flex items-center gap-3">
+             <div className="h-10 w-10 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
                 <Image src={product.imageUrl} alt="Product" fill className="object-cover" />
              </div>
-             <div>
-                <h3 className="font-bold text-slate-900 text-sm line-clamp-1 max-w-md">{product.title}</h3>
+             <div className="min-w-0">
+                <h3 className="font-bold text-slate-900 text-sm truncate max-w-[150px] sm:max-w-md">{product.title}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-bold border border-brand-100">
+                    <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-bold border border-brand-100 whitespace-nowrap">
                         {category}
                     </span>
-                    <span className="text-xs text-slate-400">Listing Studio</span>
                 </div>
              </div>
           </div>
           <div className="flex gap-2">
-              <button onClick={() => { saveEverything(); onClose(); }} className="px-5 py-2.5 bg-brand-900 text-white text-xs font-bold rounded-xl hover:bg-brand-800 transition flex items-center gap-2 shadow-lg shadow-brand-900/10">
-                <Save size={14} /> Save & Close
+              <button onClick={() => { saveEverything(); onClose(); }} className="px-3 py-2 sm:px-5 sm:py-2.5 bg-brand-900 text-white text-xs font-bold rounded-xl hover:bg-brand-800 transition flex items-center gap-2 shadow-lg">
+                <Save size={14} /> <span className="hidden sm:inline">Save & Close</span>
               </button>
-              <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-600">
+              <button onClick={onClose} className="p-2 sm:p-2.5 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
           </div>
         </div>
 
-        {/* TABS */}
-        <div className="flex border-b border-slate-200 bg-slate-50/50">
+        {/* TABS - Scrollable on mobile */}
+        <div className="flex border-b border-slate-200 bg-slate-50/50 overflow-x-auto shrink-0 no-scrollbar">
             <button 
                 onClick={() => setActiveTab("text")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "text" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
             >
-                <Type size={18} className={activeTab === "text" ? "text-brand-600" : "text-slate-400"} /> AI Copywriter
+                <Type size={16} /> AI Copywriter
             </button>
             <button 
                 onClick={() => setActiveTab("media")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "media" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "media" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
             >
-                <ImageIcon size={18} className={activeTab === "media" ? "text-brand-600" : "text-slate-400"} /> Magic Studio
+                <ImageIcon size={16} /> Magic Studio
             </button>
             <button 
                 onClick={() => setActiveTab("profit")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "profit" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
             >
-                <DollarSign size={18} className={activeTab === "profit" ? "text-brand-600" : "text-slate-400"} /> Profit & Sourcing
+                <DollarSign size={16} /> Profit & Sourcing
             </button>
         </div>
 
-        {/* CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50/30">
+        {/* CONTENT AREA - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30">
             
-            {/* --- TAB 1: COPYWRITER (REWRITER MODE) --- */}
+            {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+                // FIX: Flex-col for mobile (stacked), Grid for Desktop
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
                     
                     {/* LEFT: CONTROLS */}
-                    <div className="lg:col-span-1 space-y-6 flex flex-col">
+                    <div className="lg:col-span-1 space-y-6 flex flex-col shrink-0">
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3 flex items-center gap-2">
                                 <Wand2 size={14} /> Tone of Voice
@@ -240,10 +231,10 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             </div>
                         </div>
 
-                        {/* ORIGINAL TEXT DISPLAY */}
-                        <div className="flex-1 flex flex-col min-h-0">
+                        {/* ORIGINAL TEXT - Hidden on very small screens to save space, or collapsible */}
+                        <div className="flex-col min-h-0 hidden sm:flex">
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3">Original Source</label>
-                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm">
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm max-h-32 lg:max-h-none">
                                 <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">
                                     {product.originalDesc || product.title}
                                 </p>
@@ -253,7 +244,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <button 
                             onClick={optimizeWithAI} 
                             disabled={loadingText}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95 shrink-0"
                         >
                             {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
                             {loadingText ? "Rewriting..." : "Rewrite Description"}
@@ -261,17 +252,17 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     </div>
 
                     {/* RIGHT: EDITOR */}
-                    <div className="lg:col-span-2 flex flex-col h-full">
+                    <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px]">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3">Optimized Content</label>
-                        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 relative group shadow-sm hover:shadow-md transition">
+                        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
                             {currentDesc ? (
                                 <textarea 
                                     value={currentDesc}
                                     onChange={(e) => setCurrentDesc(e.target.value)}
-                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none font-mono leading-relaxed custom-scrollbar outline-none"
+                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none font-mono leading-relaxed custom-scrollbar outline-none min-h-[250px]"
                                 />
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[250px]">
                                     <Type size={48} className="mb-4 opacity-20" />
                                     <p className="text-sm font-medium">Select a tone and click Rewrite</p>
                                 </div>
@@ -292,11 +283,12 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 2: MAGIC STUDIO --- */}
             {activeTab === "media" && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
-                    {/* Controls */}
-                    <div className="lg:col-span-1 flex flex-col h-full">
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
+                    
+                    {/* CONTROLS - Stacked on Mobile */}
+                    <div className="lg:col-span-1 flex flex-col shrink-0">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 flex-1 min-h-0 custom-scrollbar max-h-[400px]">
+                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[200px] lg:max-h-[400px] lg:flex-1">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
                                     key={t.id}
@@ -311,15 +303,15 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <button 
                             onClick={generateBackground}
                             disabled={loadingImage}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-4 rounded-xl mt-6 hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-4 rounded-xl mt-6 hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95 shrink-0"
                         >
                             {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
                             {loadingImage ? "Rendering Scene..." : "Generate Image"}
                         </button>
                     </div>
 
-                    {/* Preview */}
-                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+                    {/* PREVIEW - Flexible Height */}
+                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[300px] flex-1">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
                                 <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
@@ -327,7 +319,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </div>
                                 <div className="absolute bottom-6 flex gap-3">
                                     <button onClick={handleDownload} className="bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-50 border border-slate-200 shadow-lg">
-                                        <Download size={14} /> Download HD
+                                        <Download size={14} /> HD
                                     </button>
                                     <button onClick={() => setResultImage("")} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold hover:bg-slate-800 shadow-lg">
                                         Reset
@@ -335,8 +327,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </div>
                             </div>
                         ) : (
-                            <div className="relative w-full h-full p-12 flex items-center justify-center transition duration-500">
-                                <div className="relative w-full max-w-md aspect-square bg-white rounded-xl shadow-xl p-4 border border-slate-200">
+                            <div className="relative w-full h-full p-8 flex items-center justify-center transition duration-500">
+                                <div className="relative w-full max-w-sm aspect-square bg-white rounded-xl shadow-xl p-4 border border-slate-200">
                                     <Image src={product.imageUrl} alt="Original" fill className="object-contain p-4" />
                                     <div className="absolute inset-x-0 bottom-4 text-center">
                                         <span className="bg-slate-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-medium shadow-sm">Original Image</span>
@@ -348,18 +340,19 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 </div>
             )}
 
-            {/* --- TAB 3: PROFIT & SOURCING --- */}
+            {/* --- TAB 3: PROFIT (Responsive Grid) --- */}
             {activeTab === "profit" && (
                 <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 pt-4">
                     
                     {/* Calculator */}
-                    <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
-                        <div className="flex items-center gap-2 text-brand-600 mb-8">
+                    <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2 text-brand-600 mb-6">
                             <div className="p-2 bg-brand-50 rounded-lg"><Calculator size={20} /></div>
                             <h3 className="font-bold text-lg text-slate-900">Profit Calculator</h3>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-8 items-end">
+                        {/* FIX: Stack on mobile, 3 cols on desktop */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 items-end">
                             <div>
                                 <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Supplier Cost</label>
                                 <div className="relative">
@@ -395,7 +388,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     </div>
 
                     {/* Sourcing Links */}
-                    <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
+                    <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm">
                         <div className="flex items-center gap-2 text-orange-600 mb-6">
                             <div className="p-2 bg-orange-50 rounded-lg"><ExternalLink size={20} /></div>
                             <h3 className="font-bold text-lg text-slate-900">Sourcing Links</h3>
