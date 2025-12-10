@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, Zap } from "lucide-react";
 import { Container } from "@/components/ui/Container";
+import { useSession, signOut } from "next-auth/react";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: session } = useSession();
 
   const navLinks = [
     { name: "Product", href: "#product" },
@@ -40,14 +42,29 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/sign-in" className="text-sm font-medium text-gray-600 hover:text-brand-900">
-              Log in
-            </Link>
-            <Link href="/sign-up">
-              <button className="bg-action hover:bg-action-hover text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
-                Start Free Trial
-              </button>
-            </Link>
+            {session ? (
+               <div className="flex items-center gap-4">
+                  <Link href="/dashboard">
+                    <button className="bg-brand-50 text-brand-700 px-4 py-2 rounded-lg text-sm font-bold border border-brand-100">
+                        Dashboard
+                    </button>
+                  </Link>
+                  <button onClick={() => signOut()} className="text-sm font-medium text-slate-500 hover:text-red-600 transition">
+                      Sign Out
+                  </button>
+               </div>
+            ) : (
+                <>
+                    <Link href="/sign-in" className="text-sm font-medium text-gray-600 hover:text-brand-900">
+                    Log in
+                    </Link>
+                    <Link href="/sign-up">
+                    <button className="bg-action hover:bg-action-hover text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
+                        Start Free Trial
+                    </button>
+                    </Link>
+                </>
+            )}
           </div>
 
           <div className="flex md:hidden">
@@ -72,12 +89,23 @@ export function Navbar() {
               </Link>
             ))}
             <div className="flex flex-col gap-3 pt-2">
-              <Link href="/sign-in">
-                <button className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Log in</button>
-              </Link>
-              <Link href="/sign-up">
-                <button className="w-full bg-action text-white py-3 rounded-lg font-bold shadow-md">Start Free Trial</button>
-              </Link>
+              {session ? (
+                 <>
+                    <Link href="/dashboard">
+                        <button className="w-full bg-brand-900 text-white py-3 rounded-lg font-bold shadow-md">Go to Dashboard</button>
+                    </Link>
+                    <button onClick={() => signOut()} className="w-full border border-red-200 text-red-600 py-3 rounded-lg font-semibold hover:bg-red-50">Sign Out</button>
+                 </>
+              ) : (
+                 <>
+                    <Link href="/sign-in">
+                        <button className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Log in</button>
+                    </Link>
+                    <Link href="/sign-up">
+                        <button className="w-full bg-action text-white py-3 rounded-lg font-bold shadow-md">Start Free Trial</button>
+                    </Link>
+                 </>
+              )}
             </div>
           </div>
         </div>
