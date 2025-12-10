@@ -30,4 +30,15 @@
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.1"
   },
-  "devDependencies
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "postcss": "^8",
+    "prisma": "^5.10.2",
+    "tailwindcss": "^3.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}
