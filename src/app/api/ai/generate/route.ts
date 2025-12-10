@@ -38,8 +38,8 @@ export async function POST(req: Request) {
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://glowseller.com",
-        "X-Title": "GlowSeller",
+        "HTTP-Referer": "https://clearseller.com", // Updated
+        "X-Title": "ClearSeller", // Updated
       },
       body: JSON.stringify(payload)
     });
