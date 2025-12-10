@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import Link from 'next/link';
-import { UserButton } from "@clerk/nextjs";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X } from 'lucide-react';
+import { useSession, signOut } from "next-auth/react";
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X, LogOut, User } from 'lucide-react';
 
 export default function DashboardMobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <>
+      {/* MOBILE APP BAR */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">
+          <button 
+            onClick={() => setIsOpen(true)}
+            className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+          >
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-2">
@@ -22,11 +27,21 @@ export default function DashboardMobileMenu() {
             <span className="font-bold text-brand-900 text-lg tracking-tight">ClearSeller</span>
           </div>
         </div>
-        <UserButton afterSignOutUrl="/" />
+        {/* User Avatar / Profile */}
+        <div className="h-8 w-8 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
+            {session?.user?.image ? (
+                <img src={session.user.image} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+                <div className="h-full w-full flex items-center justify-center bg-brand-900 text-white font-bold text-xs">
+                    {session?.user?.name?.[0] || "U"}
+                </div>
+            )}
+        </div>
       </div>
 
       <div className="h-16 md:hidden"></div>
 
+      {/* MOBILE DRAWER */}
       <div 
         className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsOpen(false)}
@@ -52,11 +67,23 @@ export default function DashboardMobileMenu() {
         </nav>
 
         <div className="p-4 border-t border-brand-800 bg-brand-950/30">
-            <div className="flex items-center gap-3">
-                <div className="flex flex-col">
-                    <span className="text-xs font-medium text-slate-400">Signed in as</span>
-                    <span className="text-sm font-bold text-white">User</span>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center text-xs font-bold border border-brand-700">
+                        {session?.user?.image ? (
+                            <img src={session.user.image} alt="User" className="h-full w-full object-cover" />
+                        ) : (
+                            <span>{session?.user?.name?.[0] || "U"}</span>
+                        )}
+                    </div>
+                    <div className="flex flex-col max-w-[100px]">
+                        <span className="text-sm font-bold text-white truncate">{session?.user?.name || "User"}</span>
+                        <span className="text-[10px] text-brand-300">Pro Plan</span>
+                    </div>
                 </div>
+                <button onClick={() => signOut()} className="p-2 bg-brand-800 rounded-lg hover:bg-red-900/50 hover:text-red-400 transition">
+                    <LogOut size={18} />
+                </button>
             </div>
         </div>
       </div>
