@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Type } from "lucide-react";
 import Image from "next/image";
 
 const SCENE_TEMPLATES = [
@@ -153,9 +153,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4">
-      {/* Container: Full height on mobile, constrained on desktop */}
-      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
         
         {/* HEADER */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
@@ -165,7 +164,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
              </div>
              <div className="min-w-0">
                 <h3 className="font-bold text-slate-900 text-sm truncate max-w-[150px] sm:max-w-md">{product.title}</h3>
-                <span className="text-[10px] text-slate-400">Listing Studio</span>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-bold border border-brand-100 whitespace-nowrap">
+                        {category}
+                    </span>
+                </div>
              </div>
           </div>
           <div className="flex gap-2">
@@ -200,7 +203,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             </button>
         </div>
 
-        {/* CONTENT AREA */}
+        {/* CONTENT AREA (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30">
             
             {/* --- TAB 1: COPYWRITER --- */}
@@ -208,7 +211,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
                     
                     {/* LEFT: CONTROLS */}
-                    <div className="lg:col-span-1 space-y-6 flex flex-col shrink-0">
+                    <div className="lg:col-span-1 space-y-6 flex flex-col shrink-0 order-1 lg:order-1">
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3 flex items-center gap-2">
                                 <Wand2 size={14} /> Tone of Voice
@@ -229,26 +232,16 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         {/* Collapsible Original Text */}
                         <div className="flex-col min-h-0 hidden sm:flex">
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3">Original Source</label>
-                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm max-h-32">
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm max-h-32 sm:max-h-48 lg:flex-1">
                                 <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">
                                     {product.originalDesc || product.title}
                                 </p>
                             </div>
                         </div>
-
-                        {/* ACTION BUTTON (VISIBLE ON MOBILE) */}
-                        <button 
-                            onClick={optimizeWithAI} 
-                            disabled={loadingText}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
-                        >
-                            {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                            {loadingText ? "Rewriting..." : "Rewrite Description"}
-                        </button>
                     </div>
 
                     {/* RIGHT: EDITOR */}
-                    <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px]">
+                    <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px] order-2 lg:order-2">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3">Optimized Content</label>
                         <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
                             {currentDesc ? (
@@ -282,9 +275,9 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
                     
                     {/* CONTROLS */}
-                    <div className="lg:col-span-1 flex flex-col shrink-0">
+                    <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
                                     key={t.id}
@@ -296,20 +289,10 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </button>
                             ))}
                         </div>
-
-                        {/* ACTION BUTTON (VISIBLE ON MOBILE) */}
-                        <button 
-                            onClick={generateBackground}
-                            disabled={loadingImage}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
-                        >
-                            {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                            {loadingImage ? "Rendering Scene..." : "Generate Image"}
-                        </button>
                     </div>
 
                     {/* PREVIEW */}
-                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[300px]">
+                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
                                 <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
@@ -421,6 +404,32 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             )}
 
         </div>
+
+        {/* FIXED FOOTER (Primary Actions - ALWAYS VISIBLE) */}
+        {activeTab !== "profit" && (
+            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-center z-20 shadow-lg">
+                {activeTab === "text" && (
+                     <button 
+                        onClick={optimizeWithAI} 
+                        disabled={loadingText}
+                        className="w-full max-w-md bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                    >
+                        {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingText ? "Rewriting..." : "Rewrite Description"}
+                    </button>
+                )}
+                {activeTab === "media" && (
+                    <button 
+                        onClick={generateBackground}
+                        disabled={loadingImage}
+                        className="w-full max-w-md bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                    >
+                        {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingImage ? "Rendering Scene..." : "Generate Image"}
+                    </button>
+                )}
+            </div>
+        )}
       </div>
     </div>
   );
