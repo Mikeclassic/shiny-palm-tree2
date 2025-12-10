@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type, ChevronDown, ChevronUp } from "lucide-react";
 import Image from "next/image";
 
+// DIVERSE DROPSHIPPING TEMPLATES
 const SCENE_TEMPLATES = [
   { id: 't1', name: 'White Podium', prompt: 'a pristine white round podium, professional studio lighting, minimalist' },
   { id: 't2', name: 'Luxury Marble', prompt: 'a luxury white marble surface with soft window reflection, premium feel' },
@@ -42,7 +43,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const [sellingPrice, setSellingPrice] = useState<string>(product.price.toString());
   const [profit, setProfit] = useState<number | null>(null);
 
-  // Profit Calculation
+  // Profit Calc
   useEffect(() => {
     const sell = parseFloat(sellingPrice) || 0;
     const cost = parseFloat(supplierPrice) || 0;
@@ -54,7 +55,6 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   }, [supplierPrice, sellingPrice]);
 
-  // ACTIONS
   const saveEverything = async () => {
     try {
         await fetch("/api/product/save", {
@@ -153,8 +153,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    // FIX: Use 100dvh for mobile to avoid address bar issues, rounded-none on mobile for full immersion
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+      {/* Mobile: Full Screen (100dvh). Desktop: Floating Card */}
       <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-[90vh] sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
         
         {/* HEADER */}
@@ -182,11 +182,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
           </div>
         </div>
 
-        {/* TABS - Scrollable on mobile */}
+        {/* TABS */}
         <div className="flex border-b border-slate-200 bg-slate-50/50 overflow-x-auto shrink-0 no-scrollbar">
             <button 
                 onClick={() => setActiveTab("text")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
                 <Type size={16} /> AI Copywriter
             </button>
@@ -200,20 +200,19 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 onClick={() => setActiveTab("profit")}
                 className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
             >
-                <DollarSign size={16} /> Profit & Sourcing
+                <DollarSign size={16} /> Profit
             </button>
         </div>
 
-        {/* CONTENT AREA - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30">
+        {/* CONTENT AREA (Scrollable) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30 pb-24"> {/* Added pb-24 for Sticky Footer space */}
             
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
-                // FIX: Flex-col for mobile (stacked), Grid for Desktop
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
                     
-                    {/* LEFT: CONTROLS */}
-                    <div className="lg:col-span-1 space-y-6 flex flex-col shrink-0">
+                    {/* INPUTS */}
+                    <div className="lg:col-span-1 space-y-6 flex flex-col shrink-0 order-1 lg:order-1">
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3 flex items-center gap-2">
                                 <Wand2 size={14} /> Tone of Voice
@@ -231,38 +230,29 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             </div>
                         </div>
 
-                        {/* ORIGINAL TEXT - Hidden on very small screens to save space, or collapsible */}
-                        <div className="flex-col min-h-0 hidden sm:flex">
+                        {/* Collapsible Original Text for Mobile */}
+                        <div className="flex-col min-h-0">
                             <label className="text-xs text-slate-500 uppercase font-bold mb-3">Original Source</label>
-                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm max-h-32 lg:max-h-none">
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar shadow-sm max-h-32 sm:max-h-48 lg:flex-1">
                                 <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">
                                     {product.originalDesc || product.title}
                                 </p>
                             </div>
                         </div>
-
-                        <button 
-                            onClick={optimizeWithAI} 
-                            disabled={loadingText}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95 shrink-0"
-                        >
-                            {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                            {loadingText ? "Rewriting..." : "Rewrite Description"}
-                        </button>
                     </div>
 
-                    {/* RIGHT: EDITOR */}
-                    <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px]">
+                    {/* OUTPUT */}
+                    <div className="lg:col-span-2 flex flex-col flex-1 min-h-[300px] order-2 lg:order-2">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3">Optimized Content</label>
                         <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
                             {currentDesc ? (
                                 <textarea 
                                     value={currentDesc}
                                     onChange={(e) => setCurrentDesc(e.target.value)}
-                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none font-mono leading-relaxed custom-scrollbar outline-none min-h-[250px]"
+                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none font-mono leading-relaxed custom-scrollbar outline-none min-h-[300px]"
                                 />
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[250px]">
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
                                     <Type size={48} className="mb-4 opacity-20" />
                                     <p className="text-sm font-medium">Select a tone and click Rewrite</p>
                                 </div>
@@ -285,10 +275,10 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             {activeTab === "media" && (
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
                     
-                    {/* CONTROLS - Stacked on Mobile */}
-                    <div className="lg:col-span-1 flex flex-col shrink-0">
+                    {/* CONTROLS */}
+                    <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[200px] lg:max-h-[400px] lg:flex-1">
+                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar max-h-[250px] lg:max-h-[400px] lg:flex-1">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
                                     key={t.id}
@@ -300,18 +290,10 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                 </button>
                             ))}
                         </div>
-                        <button 
-                            onClick={generateBackground}
-                            disabled={loadingImage}
-                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-4 rounded-xl mt-6 hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95 shrink-0"
-                        >
-                            {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                            {loadingImage ? "Rendering Scene..." : "Generate Image"}
-                        </button>
                     </div>
 
-                    {/* PREVIEW - Flexible Height */}
-                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[300px] flex-1">
+                    {/* PREVIEW */}
+                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
                                 <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
@@ -340,7 +322,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 </div>
             )}
 
-            {/* --- TAB 3: PROFIT (Responsive Grid) --- */}
+            {/* --- TAB 3: PROFIT --- */}
             {activeTab === "profit" && (
                 <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 pt-4">
                     
@@ -351,7 +333,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                             <h3 className="font-bold text-lg text-slate-900">Profit Calculator</h3>
                         </div>
                         
-                        {/* FIX: Stack on mobile, 3 cols on desktop */}
+                        {/* Stack on mobile, 3 cols on desktop */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 items-end">
                             <div>
                                 <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Supplier Cost</label>
@@ -429,6 +411,32 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             )}
 
         </div>
+
+        {/* STICKY FOOTER (Primary Actions) */}
+        {activeTab !== "profit" && (
+            <div className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center justify-between sm:hidden pb-8">
+                {activeTab === "text" && (
+                     <button 
+                        onClick={optimizeWithAI} 
+                        disabled={loadingText}
+                        className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                    >
+                        {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingText ? "Rewriting..." : "Rewrite Description"}
+                    </button>
+                )}
+                {activeTab === "media" && (
+                    <button 
+                        onClick={generateBackground}
+                        disabled={loadingImage}
+                        className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
+                    >
+                        {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingImage ? "Rendering Scene..." : "Generate Image"}
+                    </button>
+                )}
+            </div>
+        )}
       </div>
     </div>
   );
