@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Type } from "lucide-react";
+import { X, Copy, CheckCircle2, Calculator, Wand2, Loader2, Save, Sparkles, Image as ImageIcon, Download, ExternalLink, Search, DollarSign, Tag, Type } from "lucide-react";
 import Image from "next/image";
 
 // DIVERSE DROPSHIPPING TEMPLATES
@@ -30,12 +30,8 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
   // --- TAB 1: AI COPYWRITER ---
   const [tone, setTone] = useState(product.style || "Persuasive");
-  
-  // Use generated if exists, otherwise title as fallback (originalDesc is displayed separately)
-  const [currentDesc, setCurrentDesc] = useState(
-    product.generatedDesc || ""
-  );
-  
+  const [category, setCategory] = useState(product.era || "General");
+  const [currentDesc, setCurrentDesc] = useState(product.generatedDesc || "");
   const [loadingText, setLoadingText] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -70,7 +66,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 id: product.id,
                 generatedDesc: currentDesc, 
                 generatedImage: resultImage,
-                preferences: { style: tone }, 
+                preferences: { style: tone, era: category },
             })
         });
     } catch (e) {
@@ -85,14 +81,14 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
         method: "POST",
         body: JSON.stringify({
             title: product.title,
-            originalDesc: product.originalDesc || product.title, // Pass raw text for rewriting
+            originalDesc: product.originalDesc || product.title, 
             tone: tone
         }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       
-      setCurrentDesc(data); // Set the result
+      setCurrentDesc(data); 
       
       // Auto-save
       await fetch("/api/product/save", {
@@ -167,59 +163,59 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
   const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-950 border border-gray-800 w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
         
         {/* HEADER */}
-        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-black">
-          <div className="flex items-center gap-3">
-             <div className="h-10 w-10 relative rounded-md overflow-hidden border border-gray-700">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
+          <div className="flex items-center gap-4">
+             <div className="h-12 w-12 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
                 <Image src={product.imageUrl} alt="Product" fill className="object-cover" />
              </div>
              <div>
-                <h3 className="font-bold text-white text-sm line-clamp-1 max-w-md">{product.title}</h3>
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded border border-purple-800">
-                        {tone}
+                <h3 className="font-bold text-slate-900 text-sm line-clamp-1 max-w-md">{product.title}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded font-bold border border-brand-100">
+                        {category}
                     </span>
-                    <span className="text-xs text-gray-500">Listing Studio</span>
+                    <span className="text-xs text-slate-400">Listing Studio</span>
                 </div>
              </div>
           </div>
           <div className="flex gap-2">
-              <button onClick={() => { saveEverything(); onClose(); }} className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-gray-200 transition flex items-center gap-2">
+              <button onClick={() => { saveEverything(); onClose(); }} className="px-5 py-2.5 bg-brand-900 text-white text-xs font-bold rounded-xl hover:bg-brand-800 transition flex items-center gap-2 shadow-lg shadow-brand-900/10">
                 <Save size={14} /> Save & Close
               </button>
-              <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-lg transition text-gray-400">
+              <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
           </div>
         </div>
 
         {/* TABS */}
-        <div className="flex border-b border-gray-800 bg-gray-900/30">
+        <div className="flex border-b border-slate-200 bg-slate-50/50">
             <button 
                 onClick={() => setActiveTab("text")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "text" ? "border-purple-500 text-white bg-purple-500/10" : "border-transparent text-gray-500 hover:text-gray-300"}`}
+                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "text" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
-                <Type size={16} /> AI Copywriter
+                <Type size={18} className={activeTab === "text" ? "text-brand-600" : "text-slate-400"} /> AI Copywriter
             </button>
             <button 
                 onClick={() => setActiveTab("media")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "media" ? "border-pink-500 text-white bg-pink-500/10" : "border-transparent text-gray-500 hover:text-gray-300"}`}
+                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "media" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
-                <ImageIcon size={16} /> Magic Studio
+                <ImageIcon size={18} className={activeTab === "media" ? "text-brand-600" : "text-slate-400"} /> Magic Studio
             </button>
             <button 
                 onClick={() => setActiveTab("profit")}
-                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "profit" ? "border-green-500 text-white bg-green-500/10" : "border-transparent text-gray-500 hover:text-gray-300"}`}
+                className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition ${activeTab === "profit" ? "border-brand-600 text-brand-700 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
-                <DollarSign size={16} /> Profit & Sourcing
+                <DollarSign size={18} className={activeTab === "profit" ? "text-brand-600" : "text-slate-400"} /> Profit & Sourcing
             </button>
         </div>
 
         {/* CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 bg-black">
+        <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50/30">
             
             {/* --- TAB 1: COPYWRITER (REWRITER MODE) --- */}
             {activeTab === "text" && (
@@ -228,15 +224,15 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     {/* LEFT: CONTROLS */}
                     <div className="lg:col-span-1 space-y-6 flex flex-col">
                         <div>
-                            <label className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
-                                <Wand2 size={12} /> Select Tone
+                            <label className="text-xs text-slate-500 uppercase font-bold mb-3 flex items-center gap-2">
+                                <Wand2 size={14} /> Tone of Voice
                             </label>
                             <div className="grid grid-cols-2 gap-2">
-                                {["Persuasive", "Luxury/High-End", "Viral/Hype", "Friendly", "Professional", "Minimalist"].map(opt => (
+                                {["Persuasive", "Luxury", "Viral", "Friendly", "Professional", "Minimalist"].map(opt => (
                                     <button 
                                         key={opt} 
                                         onClick={() => setTone(opt)} 
-                                        className={`py-2 text-[10px] rounded-lg border transition ${tone === opt ? "bg-purple-600 border-purple-600 text-white" : "border-gray-800 text-gray-400 hover:border-gray-600"}`}
+                                        className={`py-2.5 text-xs rounded-lg border font-medium transition ${tone === opt ? "bg-brand-900 border-brand-900 text-white shadow-md" : "bg-white border-slate-200 text-slate-600 hover:border-brand-300"}`}
                                     >
                                         {opt}
                                     </button>
@@ -246,9 +242,9 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
                         {/* ORIGINAL TEXT DISPLAY */}
                         <div className="flex-1 flex flex-col min-h-0">
-                            <label className="text-xs text-gray-500 uppercase font-bold mb-2">Original Description</label>
-                            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 border-dashed">
-                                <p className="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed">
+                            <label className="text-xs text-slate-500 uppercase font-bold mb-3">Original Source</label>
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-y-auto custom-scrollbar flex-1 shadow-sm">
+                                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">
                                     {product.originalDesc || product.title}
                                 </p>
                             </div>
@@ -257,36 +253,36 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <button 
                             onClick={optimizeWithAI} 
                             disabled={loadingText}
-                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20"
+                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-800 hover:to-brand-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
                         >
                             {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                            {loadingText ? "Rewriting..." : "✨ Make it Better & Original"}
+                            {loadingText ? "Rewriting..." : "Rewrite Description"}
                         </button>
                     </div>
 
                     {/* RIGHT: EDITOR */}
                     <div className="lg:col-span-2 flex flex-col h-full">
-                        <label className="text-xs text-gray-500 uppercase font-bold mb-2">Optimized Result</label>
-                        <div className="flex-1 bg-gray-900 border border-gray-800 rounded-xl p-4 relative group">
+                        <label className="text-xs text-slate-500 uppercase font-bold mb-3">Optimized Content</label>
+                        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 relative group shadow-sm hover:shadow-md transition">
                             {currentDesc ? (
                                 <textarea 
                                     value={currentDesc}
                                     onChange={(e) => setCurrentDesc(e.target.value)}
-                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-300 resize-none font-mono leading-relaxed custom-scrollbar"
+                                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none font-mono leading-relaxed custom-scrollbar outline-none"
                                 />
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-600">
-                                    <Type size={32} className="mb-2 opacity-20" />
-                                    <p className="text-sm">Click "Make it Better" to generate</p>
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                    <Type size={48} className="mb-4 opacity-20" />
+                                    <p className="text-sm font-medium">Select a tone and click Rewrite</p>
                                 </div>
                             )}
                             
                             {currentDesc && (
                                 <button 
                                     onClick={() => { navigator.clipboard.writeText(currentDesc); setCopied(true); setTimeout(() => setCopied(false), 2000); }} 
-                                    className="absolute top-4 right-4 bg-black/80 hover:bg-black text-white p-2 rounded-lg text-xs flex items-center gap-2 border border-gray-700 transition"
+                                    className="absolute top-4 right-4 bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-200 transition shadow-sm"
                                 >
-                                    {copied ? <CheckCircle2 size={14} className="text-green-500" /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
+                                    {copied ? <CheckCircle2 size={14} className="text-green-600" /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
                                 </button>
                             )}
                         </div>
@@ -294,28 +290,28 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 </div>
             )}
 
-            {/* --- TAB 2 & 3: MEDIA & PROFIT (Standard) --- */}
+            {/* --- TAB 2: MAGIC STUDIO --- */}
             {activeTab === "media" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
                     {/* Controls */}
                     <div className="lg:col-span-1 flex flex-col h-full">
-                        <label className="text-xs text-gray-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1 flex-1 min-h-0 custom-scrollbar max-h-[400px]">
+                        <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
+                        <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 flex-1 min-h-0 custom-scrollbar max-h-[400px]">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
                                     key={t.id}
                                     onClick={() => setSelectedTemplate(t)}
-                                    className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-pink-500 bg-pink-500/10' : 'border-gray-800 hover:border-gray-600 bg-gray-900'}`}
+                                    className={`p-3 rounded-xl border text-left transition relative ${selectedTemplate.id === t.id ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-200' : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'}`}
                                 >
-                                    <span className="text-[10px] font-bold block mb-1 text-white">{t.name}</span>
-                                    <span className="text-[9px] text-gray-500 line-clamp-1">{t.prompt.substring(0, 30)}...</span>
+                                    <span className="text-[11px] font-bold block mb-1 text-slate-900">{t.name}</span>
+                                    <span className="text-[10px] text-slate-500 line-clamp-1">{t.prompt.substring(0, 30)}...</span>
                                 </button>
                             ))}
                         </div>
                         <button 
                             onClick={generateBackground}
                             disabled={loadingImage}
-                            className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 rounded-xl mt-4 hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20"
+                            className="w-full bg-gradient-to-r from-brand-700 to-brand-600 text-white font-bold py-4 rounded-xl mt-6 hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 active:scale-95"
                         >
                             {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
                             {loadingImage ? "Rendering Scene..." : "Generate Image"}
@@ -323,85 +319,115 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                     </div>
 
                     {/* Preview */}
-                    <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-32 bg-pink-600/10 blur-3xl rounded-full pointer-events-none"></div>
-                        
+                    <div className="lg:col-span-2 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
                         {resultImage ? (
-                            <div className="relative w-full h-full p-4 flex flex-col items-center justify-center animate-in fade-in zoom-in">
-                                <div className="relative w-full h-full max-h-[400px] aspect-square">
-                                    <img src={resultImage} className="w-full h-full object-contain drop-shadow-2xl" alt="Result" />
+                            <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
+                                <div className="relative w-full h-full max-h-[450px] aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 p-2">
+                                    <img src={resultImage} className="w-full h-full object-contain" alt="Result" />
                                 </div>
-                                <div className="absolute bottom-4 flex gap-2">
-                                    <button onClick={handleDownload} className="bg-white text-black px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200">
+                                <div className="absolute bottom-6 flex gap-3">
+                                    <button onClick={handleDownload} className="bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-50 border border-slate-200 shadow-lg">
                                         <Download size={14} /> Download HD
                                     </button>
-                                    <button onClick={() => setResultImage("")} className="bg-black/50 text-white px-4 py-2 rounded-full text-xs font-bold border border-gray-600 hover:bg-black">
+                                    <button onClick={() => setResultImage("")} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold hover:bg-slate-800 shadow-lg">
                                         Reset
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="relative w-full h-full p-8 flex items-center justify-center transition duration-500">
-                                <Image src={product.imageUrl} alt="Original" fill className="object-contain p-4" />
+                            <div className="relative w-full h-full p-12 flex items-center justify-center transition duration-500">
+                                <div className="relative w-full max-w-md aspect-square bg-white rounded-xl shadow-xl p-4 border border-slate-200">
+                                    <Image src={product.imageUrl} alt="Original" fill className="object-contain p-4" />
+                                    <div className="absolute inset-x-0 bottom-4 text-center">
+                                        <span className="bg-slate-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-medium shadow-sm">Original Image</span>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             )}
 
+            {/* --- TAB 3: PROFIT & SOURCING --- */}
             {activeTab === "profit" && (
-                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
-                        <div className="flex items-center gap-2 text-green-400 mb-6">
-                            <Calculator size={20} />
-                            <h3 className="font-bold text-lg">Profit Calculator</h3>
+                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 pt-4">
+                    
+                    {/* Calculator */}
+                    <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2 text-brand-600 mb-8">
+                            <div className="p-2 bg-brand-50 rounded-lg"><Calculator size={20} /></div>
+                            <h3 className="font-bold text-lg text-slate-900">Profit Calculator</h3>
                         </div>
-                        <div className="grid grid-cols-3 gap-6 items-end">
+                        
+                        <div className="grid grid-cols-3 gap-8 items-end">
                             <div>
-                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Supplier Cost</label>
+                                <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Supplier Cost</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-3 text-gray-500">$</span>
-                                    <input type="number" value={supplierPrice} onChange={(e) => setSupplierPrice(e.target.value)} className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono" placeholder="0.00" />
+                                    <span className="absolute left-3 top-3 text-slate-400">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={supplierPrice} 
+                                        onChange={(e) => setSupplierPrice(e.target.value)} 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
+                                        placeholder="0.00"
+                                    />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 uppercase font-bold mb-2 block">Selling Price</label>
+                                <label className="text-xs text-slate-500 uppercase font-bold mb-2 block">Selling Price</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-3 text-gray-500">$</span>
-                                    <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} className="w-full bg-black border border-gray-700 rounded-xl py-3 pl-8 pr-4 text-white font-mono" />
+                                    <span className="absolute left-3 top-3 text-slate-400">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={sellingPrice} 
+                                        onChange={(e) => setSellingPrice(e.target.value)} 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
+                                    />
                                 </div>
                             </div>
-                            <div className="bg-black border border-gray-800 rounded-xl p-3 text-right">
-                                <p className="text-[10px] text-gray-500 uppercase font-bold">Net Profit</p>
-                                <p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-gray-500'}`}>{profit ? `$${profit}` : "--"}</p>
+                            <div className="bg-brand-900 rounded-xl p-4 text-right shadow-lg shadow-brand-900/20">
+                                <p className="text-[10px] text-brand-200 uppercase font-bold mb-1">Net Profit</p>
+                                <p className={`text-3xl font-mono font-bold ${profit && profit > 0 ? 'text-green-400' : 'text-white'}`}>
+                                    {profit ? `$${profit}` : "--"}
+                                </p>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
-                        <div className="flex items-center gap-2 text-blue-400 mb-6">
-                            <ExternalLink size={20} />
-                            <h3 className="font-bold text-lg">Sourcing Links</h3>
+
+                    {/* Sourcing Links */}
+                    <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2 text-orange-600 mb-6">
+                            <div className="p-2 bg-orange-50 rounded-lg"><ExternalLink size={20} /></div>
+                            <h3 className="font-bold text-lg text-slate-900">Sourcing Links</h3>
                         </div>
-                        <div className="space-y-3">
-                            <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-black border border-gray-800 rounded-xl hover:border-gray-600 transition group">
+
+                        <div className="space-y-4">
+                            <a href={product.sourceUrl} target="_blank" className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition group">
                                 <div className="flex items-center gap-3">
-                                    <span className="bg-gray-800 p-2 rounded-lg text-xs font-bold text-gray-300">COMPETITOR</span>
-                                    <span className="text-sm font-medium text-gray-300 group-hover:text-white">View Original Listing</span>
+                                    <span className="bg-slate-200 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-600 uppercase tracking-wide">Competitor</span>
+                                    <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">View Original Listing</span>
                                 </div>
-                                <ExternalLink size={16} className="text-gray-600 group-hover:text-white" />
+                                <ExternalLink size={16} className="text-slate-400 group-hover:text-slate-600" />
                             </a>
+
                             {product.supplierUrl ? (
-                                <a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-900/10 border border-green-900/30 rounded-xl hover:bg-green-900/20 hover:border-green-500/50 transition group">
+                                <a href={product.supplierUrl} target="_blank" className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100/80 hover:border-green-300 transition group shadow-sm">
                                     <div className="flex items-center gap-3">
-                                        <span className="bg-green-600 p-2 rounded-lg text-xs font-bold text-white">SUPPLIER</span>
-                                        <span className="text-sm font-medium text-green-100 group-hover:text-white">Buy on AliExpress</span>
+                                        <span className="bg-green-600 px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wide">Supplier</span>
+                                        <span className="text-sm font-semibold text-green-800 group-hover:text-green-900">Buy on AliExpress</span>
                                     </div>
-                                    <ExternalLink size={16} className="text-green-500 group-hover:text-green-300" />
+                                    <ExternalLink size={16} className="text-green-600 group-hover:text-green-800" />
                                 </a>
                             ) : (
-                                <div className="p-4 bg-black border border-dashed border-gray-800 rounded-xl text-center text-gray-500 text-sm">
-                                    No supplier matched automatically. 
-                                    <a href={manualSearchUrl} target="_blank" className="text-blue-400 hover:underline ml-1 font-bold flex items-center justify-center gap-1 mt-2"><Search size={12} /> Deep Search</a>
+                                <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center">
+                                    <p className="text-slate-500 text-sm mb-3">No automated match found.</p>
+                                    <a 
+                                        href={manualSearchUrl} 
+                                        target="_blank" 
+                                        className="inline-flex items-center gap-2 text-brand-600 hover:text-brand-800 font-bold text-sm bg-white border border-brand-200 px-4 py-2 rounded-lg hover:border-brand-300 transition shadow-sm"
+                                    >
+                                        <Search size={14} /> Perform Deep Search
+                                    </a>
                                 </div>
                             )}
                         </div>
