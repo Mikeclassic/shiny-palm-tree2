@@ -159,19 +159,14 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
     }
   };
 
-  const manualSearchUrl = `https://www.google.com/search?q=site:aliexpress.com+${encodeURIComponent(product.title)}&tbm=isch`;
+  // FIX 1: RESTORE GOOGLE LENS URL (Visual Search + Text Context)
+  const query = `site:aliexpress.com ${product.title}`;
+  const manualSearchUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.imageUrl)}&q=${encodeURIComponent(query)}`;
 
   return (
-    // WRAPPER: z-50 to sit on top.
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center sm:p-4">
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center sm:p-4 overflow-hidden">
       
-      {/* 
-          MODAL CARD FIX:
-          - 'fixed inset-0' forces it to fill the mobile screen completely (0 margins).
-          - 'sm:relative' switches it back to a normal div on desktop.
-          - 'w-full h-full' ensures it takes available space.
-      */}
-      <div className="bg-white w-full h-full fixed inset-0 sm:relative sm:inset-auto sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border-0 sm:border border-slate-200 overflow-hidden">
+      <div className="bg-white w-full h-[100dvh] sm:h-[90vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col border-0 sm:border border-slate-200 overflow-hidden">
         
         {/* HEADER */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
@@ -198,29 +193,29 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
           </div>
         </div>
 
-        {/* TABS */}
-        <div className="flex border-b border-slate-200 bg-slate-50/50 overflow-x-auto shrink-0 no-scrollbar">
+        {/* FIX 2: TABS (GRID LAYOUT - NO SCROLL) */}
+        <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
             <button 
                 onClick={() => setActiveTab("text")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                className={`py-3 sm:py-4 px-2 text-[10px] sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "text" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
-                <Type size={16} /> AI Copywriter
+                <Type size={14} className="sm:w-4 sm:h-4" /> AI Copywriter
             </button>
             <button 
                 onClick={() => setActiveTab("media")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "media" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                className={`py-3 sm:py-4 px-2 text-[10px] sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "media" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
             >
-                <ImageIcon size={16} /> Magic Studio
+                <ImageIcon size={14} className="sm:w-4 sm:h-4" /> Magic Studio
             </button>
             <button 
                 onClick={() => setActiveTab("profit")}
-                className={`flex-1 py-3 sm:py-4 px-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+                className={`py-3 sm:py-4 px-2 text-[10px] sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 border-b-2 transition whitespace-nowrap ${activeTab === "profit" ? "border-slate-900 text-slate-900 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"}`}
             >
-                <DollarSign size={16} /> Profit
+                <DollarSign size={14} className="sm:w-4 sm:h-4" /> Profit
             </button>
         </div>
 
-        {/* CONTENT AREA (Scrollable) */}
+        {/* CONTENT AREA */}
         <div 
             ref={contentRef} 
             className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/30 pb-32" 
@@ -228,7 +223,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             
             {/* --- TAB 1: COPYWRITER --- */}
             {activeTab === "text" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 pb-24">
                     
                     {/* LEFT: CONTROLS */}
                     <div className="lg:col-span-1 space-y-4 flex flex-col shrink-0 order-1 lg:order-1">
@@ -291,12 +286,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
 
             {/* --- TAB 2: MAGIC STUDIO --- */}
             {activeTab === "media" && (
-                <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6">
+                <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 pb-24">
                     
-                    {/* CONTROLS (Left/Top) */}
+                    {/* CONTROLS */}
                     <div className="lg:col-span-1 flex flex-col shrink-0 order-2 lg:order-1">
                         <label className="text-xs text-slate-500 uppercase font-bold mb-3 block">Choose Environment</label>
-                        {/* UPDATE: NO MAX HEIGHT, NO SCROLLBAR */}
                         <div className="grid grid-cols-2 gap-3 pb-8">
                             {SCENE_TEMPLATES.map(t => (
                                 <button
@@ -311,7 +305,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         </div>
                     </div>
 
-                    {/* PREVIEW (Right/Bottom) */}
+                    {/* PREVIEW */}
                     <div className="lg:col-span-1 bg-slate-200/50 border border-slate-200 rounded-xl flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] min-h-[350px] flex-1 order-1 lg:order-2">
                         {resultImage ? (
                             <div className="relative w-full h-full p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in">
@@ -358,7 +352,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                         type="number" 
                                         value={supplierPrice} 
                                         onChange={(e) => setSupplierPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
                                         placeholder="0.00"
                                     />
                                 </div>
@@ -371,7 +365,7 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                                         type="number" 
                                         value={sellingPrice} 
                                         onChange={(e) => setSellingPrice(e.target.value)} 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-8 pr-4 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition"
                                     />
                                 </div>
                             </div>
@@ -440,23 +434,3 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         disabled={loadingText}
                         className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50"
                     >
-                        {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                        {loadingText ? "Rewriting..." : "Generate High-Converting Copy ✨"}
-                    </button>
-                )}
-                {activeTab === "media" && (
-                    <button 
-                        onClick={generateBackground}
-                        disabled={loadingImage}
-                        className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50"
-                    >
-                        {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
-                        {loadingImage ? "Rendering Scene..." : "Generate Professional Scene ✨"}
-                    </button>
-                )}
-            </div>
-        )}
-      </div>
-    </div>
-  );
-}
