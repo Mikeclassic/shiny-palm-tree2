@@ -434,3 +434,23 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         disabled={loadingText}
                         className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50"
                     >
+                        {loadingText ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingText ? "Rewriting..." : "Generate High-Converting Copy ✨"}
+                    </button>
+                )}
+                {activeTab === "media" && (
+                    <button 
+                        onClick={generateBackground}
+                        disabled={loadingImage}
+                        className="w-full max-w-md bg-slate-900 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 active:scale-95 disabled:opacity-50"
+                    >
+                        {loadingImage ? <Loader2 className="animate-spin" /> : <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />}
+                        {loadingImage ? "Rendering Scene..." : "Generate Professional Scene ✨"}
+                    </button>
+                )}
+            </div>
+        )}
+      </div>
+    </div>
+  );
+}
