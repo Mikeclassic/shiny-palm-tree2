@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const generateDescriptionSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title too long'),
   originalDesc: z.string().max(10000, 'Description too long'),
-  tone: z.enum(['Persuasive', 'Luxury', 'Professional', 'Casual']).optional(),
+  tone: z.string().max(50).optional(), // Accept any tone, let AI interpret it
 });
 
 // Background change endpoint validation

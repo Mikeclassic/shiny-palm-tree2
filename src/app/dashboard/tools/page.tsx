@@ -18,17 +18,23 @@ export default function AITools() {
       // We reuse the new powerful API but with minimal data
       const res = await fetch("/api/ai/generate", {
         method: "POST",
-        body: JSON.stringify({ 
+        body: JSON.stringify({
             title: productName,
-            preferences: { style: "General" }, 
-            price: "0",
-            imageUrl: "" // No image for simple text gen
+            originalDesc: productName, // Use product name as description
+            tone: "General"
         }),
       });
       const data = await res.json();
+
+      // Check for errors
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
       setDescResult(data);
-    } catch (e) {
-      alert("Error generating description");
+    } catch (e: any) {
+      alert(e.message || "Error generating description");
     } finally {
       setLoading(false);
     }
@@ -38,17 +44,22 @@ export default function AITools() {
     if(!imageUrl) return;
     setBgLoading(true);
     try {
-      // Note: You need a separate API route for bg-removal if you want this to work, 
-      // or we can mock it/implement it later. For now, this restores the UI.
       const res = await fetch("/api/ai/remove-bg", {
         method: "POST",
         body: JSON.stringify({ imageUrl }),
       });
       const data = await res.json();
+
+      // Check for errors first
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
       if(data.output) setBgResult(data.output);
-      else alert("Failed to process image");
-    } catch (e) {
-      alert("Error processing image");
+      else alert("Unable to process image. Please try again.");
+    } catch (e: any) {
+      alert(e.message || "Error processing image. Please try again.");
     } finally {
       setBgLoading(false);
     }

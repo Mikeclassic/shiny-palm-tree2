@@ -121,6 +121,13 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
             })
         });
         const data = await res.json();
+
+        // Check for errors first
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
         if (data.output) {
             setResultImage(data.output);
             await fetch("/api/product/save", {
@@ -132,11 +139,11 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                 })
             });
         } else {
-            alert("AI Failed to process image.");
+            alert("Unable to process image. Please try again.");
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        alert("Something went wrong.");
+        alert(e.message || "Something went wrong. Please try again.");
     } finally {
         setLoadingImage(false);
     }

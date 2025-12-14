@@ -86,15 +86,21 @@ export default function BackgroundStudio({ userProducts }: BackgroundStudioProps
         });
 
         const data = await res.json();
-        
+
+        // Check for errors first
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
         if (data.output) {
             setResultImage(data.output);
         } else {
-            alert("AI Failed to process image. Try a different image.");
+            alert("Unable to process image. Please try a different image.");
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        alert("Something went wrong.");
+        alert(e.message || "Something went wrong. Please try again.");
     } finally {
         setLoading(false);
     }
