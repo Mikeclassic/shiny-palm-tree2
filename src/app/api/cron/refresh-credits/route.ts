@@ -15,17 +15,20 @@ export async function GET(req: Request) {
     }
     // If no CRON_SECRET is set, endpoint is accessible without auth (useful for development/manual triggers)
 
-    // 2. Reset credits for all non-Pro users
+    // 2. Reset credits for all non-Pro users (5 credits per operation type)
     const result = await db.user.updateMany({
       where: {
         isPro: false,
       },
       data: {
-        credits: 5, // Reset to default 5 credits per day
+        credits: 5, // Legacy field (kept for backward compatibility)
+        descriptionCredits: 5, // AI description generation
+        bgRemovalCredits: 5,   // Background removal
+        bgChangeCredits: 5,    // Background change
       },
     });
 
-    console.log(`Credit refresh completed: ${result.count} users updated`);
+    console.log(`Credit refresh completed: ${result.count} users updated (5 credits per operation type)`);
 
     return NextResponse.json({
       success: true,

@@ -45,9 +45,12 @@ model User {
   image         String?
   
   // App Specific Fields
-  credits       Int       @default(5)
-  isPro         Boolean   @default(false)
-  createdAt     DateTime  @default(now())
+  credits              Int       @default(5)  // Legacy field (kept for backward compatibility)
+  descriptionCredits   Int       @default(5)  // AI description generation credits
+  bgRemovalCredits     Int       @default(5)  // Background removal credits
+  bgChangeCredits      Int       @default(5)  // Background change credits
+  isPro                Boolean   @default(false)
+  createdAt            DateTime  @default(now())
 
   accounts      Account[]
   sessions      Session[]

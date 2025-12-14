@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const { productImageUrl, prompt } = validationResult.data;
 
     // 4. Check and Deduct Credits
-    const creditResult = await checkAndDeductCredit(identifier);
+    const creditResult = await checkAndDeductCredit(identifier, 'bgChange');
     if (!creditResult.success) {
       return NextResponse.json(
         { error: creditResult.error },
