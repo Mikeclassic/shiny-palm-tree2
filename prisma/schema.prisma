@@ -54,6 +54,7 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
+  stores        Store[]
 }
 
 model VerificationToken {
@@ -93,6 +94,53 @@ model Product {
   lastSourced    DateTime?
   createdAt      DateTime @default(now())
 
+  publishedStores PublishedProduct[]
+
   @@index([supplierUrl, lastSourced(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+}
+
+// STORE CONNECTIONS
+model Store {
+  id          String   @id @default(cuid())
+  userId      String
+  platform    String   // 'shopify' or 'woocommerce'
+  storeName   String
+  storeUrl    String
+
+  // Shopify specific
+  shopifyDomain      String?  @unique
+  shopifyAccessToken String?  @db.Text
+
+  // WooCommerce specific
+  wooApiUrl        String?
+  wooConsumerKey   String?  @db.Text
+  wooConsumerSecret String? @db.Text
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishedProducts PublishedProduct[]
+
+  @@index([userId])
+}
+
+// TRACK PUBLISHED PRODUCTS
+model PublishedProduct {
+  id              String   @id @default(cuid())
+  productId       String
+  storeId         String
+  externalId      String   // Product ID in Shopify/WooCommerce
+  externalUrl     String?  // URL to product in their store
+  publishedAt     DateTime @default(now())
+  lastSyncedAt    DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, storeId])
+  @@index([storeId])
+  @@index([productId])
 }

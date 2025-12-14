@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image"; 
-import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles } from "lucide-react"; 
+import Image from "next/image";
+import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles, Upload } from "lucide-react";
 import ListingWizard from "./ListingWizard";
+import PublishModal from "./PublishModal";
 
 export default function ProductGrid({ initialProducts }: { initialProducts: any[] }) {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [publishingProduct, setPublishingProduct] = useState<any>(null);
 
   if (initialProducts.length === 0) {
     return (
@@ -44,12 +46,21 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                             </div>
                         )}
 
-                        <button 
-                            onClick={() => setSelectedProduct(product)}
-                            className="absolute bottom-3 right-3 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white shadow-lg transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs z-10"
-                        >
-                            <Sparkles size={14} className="text-yellow-300 fill-yellow-300" /> Listing Studio
-                        </button>
+                        <div className="absolute bottom-3 right-3 flex gap-2 transform translate-y-12 group-hover:translate-y-0 transition-all duration-300 z-10">
+                            <button
+                                onClick={() => setPublishingProduct(product)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center gap-2 px-3 py-2 rounded-full font-bold text-xs"
+                                title="Publish to store"
+                            >
+                                <Upload size={14} /> Publish
+                            </button>
+                            <button
+                                onClick={() => setSelectedProduct(product)}
+                                className="bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white shadow-lg flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs"
+                            >
+                                <Sparkles size={14} className="text-yellow-300 fill-yellow-300" /> Edit
+                            </button>
+                        </div>
                     </div>
                     
                     {/* DETAILS AREA */}
@@ -107,9 +118,17 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
         </div>
 
         {selectedProduct && (
-            <ListingWizard 
-                product={selectedProduct} 
-                onClose={() => setSelectedProduct(null)} 
+            <ListingWizard
+                product={selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+            />
+        )}
+
+        {publishingProduct && (
+            <PublishModal
+                productId={publishingProduct.id}
+                productTitle={publishingProduct.title}
+                onClose={() => setPublishingProduct(null)}
             />
         )}
     </>
