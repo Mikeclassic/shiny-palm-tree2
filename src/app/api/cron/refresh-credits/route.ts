@@ -3,18 +3,17 @@ import { db } from "@/lib/db";
 
 export async function GET(req: Request) {
   try {
-    // 1. Verify cron secret to prevent unauthorized access
+    // 1. Verify cron secret to prevent unauthorized access (if configured)
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
-    if (!cronSecret) {
-      console.error("CRON_SECRET not configured");
-      return NextResponse.json({ error: "Service misconfigured" }, { status: 500 });
+    // If CRON_SECRET is set, require authentication
+    if (cronSecret) {
+      if (authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
-
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // If no CRON_SECRET is set, endpoint is accessible without auth (useful for development/manual triggers)
 
     // 2. Reset credits for all non-Pro users
     const result = await db.user.updateMany({

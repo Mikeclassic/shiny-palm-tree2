@@ -57,8 +57,7 @@ export async function checkRateLimit(identifier: string) {
     return { success, remaining };
   }
 
-  // Fallback to in-memory for development
-  console.warn('Using in-memory rate limiting. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production.');
+  // In-memory fallback (works for single-instance deployments)
   return inMemoryRateLimit(identifier, 100, 60000);
 }
 
@@ -68,7 +67,6 @@ export async function checkAIRateLimit(identifier: string) {
     return { success, remaining };
   }
 
-  // Fallback to in-memory for development
-  console.warn('Using in-memory AI rate limiting. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production.');
+  // In-memory fallback (works for single-instance deployments)
   return inMemoryRateLimit(identifier, 10, 60000);
 }
