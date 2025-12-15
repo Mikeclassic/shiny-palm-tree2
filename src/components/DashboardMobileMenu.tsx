@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X, LogOut, User, Settings } from 'lucide-react';
 
 export default function DashboardMobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,6 +63,7 @@ export default function DashboardMobileMenu() {
             <MobileSidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/background-changer" icon={<ImagePlus size={20} />} label="Magic Studio" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/tools" icon={<Wand2 size={20} />} label="AI Tools" onClick={() => setIsOpen(false)} />
+            <MobileSidebarItem href="/dashboard/settings" icon={<Settings size={20} />} label="Settings" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/billing" icon={<CreditCard size={20} />} label="Billing" onClick={() => setIsOpen(false)} />
         </nav>
 

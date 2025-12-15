@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut, Settings } from 'lucide-react';
 import DashboardMobileMenu from "@/components/DashboardMobileMenu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" />
           <SidebarItem href="/dashboard/background-changer" icon={<ImagePlus size={20} />} label="Magic Studio" />
           <SidebarItem href="/dashboard/tools" icon={<Wand2 size={20} />} label="AI Tools" />
+          <SidebarItem href="/dashboard/settings" icon={<Settings size={20} />} label="Settings" />
           <SidebarItem href="/dashboard/billing" icon={<CreditCard size={20} />} label="Billing" />
         </nav>
 
