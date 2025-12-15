@@ -266,10 +266,21 @@ export default function ListingWizard({ product, onClose }: ListingWizardProps) 
                         <label className="text-xs text-slate-500 uppercase font-bold mb-2">Optimized Content</label>
                         <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition">
                             {currentDesc ? (
-                                <div
-                                    className="w-full h-full min-h-[250px] overflow-y-auto text-sm text-slate-700 leading-relaxed custom-scrollbar prose prose-sm max-w-none"
-                                    dangerouslySetInnerHTML={{ __html: currentDesc }}
-                                />
+                                // Check if content is HTML (contains HTML tags) or plain text
+                                currentDesc.includes('<p>') || currentDesc.includes('<h') || currentDesc.includes('<ul>') ? (
+                                    // Render as HTML with rich formatting
+                                    <div
+                                        className="w-full h-full min-h-[250px] overflow-y-auto text-sm text-slate-700 leading-relaxed custom-scrollbar prose prose-sm max-w-none"
+                                        dangerouslySetInnerHTML={{ __html: currentDesc }}
+                                    />
+                                ) : (
+                                    // Render as plain text in textarea (preserves line breaks and allows editing)
+                                    <textarea
+                                        value={currentDesc}
+                                        onChange={(e) => setCurrentDesc(e.target.value)}
+                                        className="w-full h-full min-h-[250px] bg-transparent border-none focus:ring-0 text-sm text-slate-700 resize-none leading-relaxed custom-scrollbar outline-none"
+                                    />
+                                )
                             ) : (
                                 <div className="h-full min-h-[250px] flex flex-col items-center justify-center text-slate-400">
                                     <Type size={48} className="mb-4 opacity-20" />
