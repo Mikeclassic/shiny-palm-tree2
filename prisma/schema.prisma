@@ -65,14 +65,14 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// PRODUCT MODEL (Unchanged)
+// PRODUCT MODEL
 model Product {
   id          String   @id @default(cuid())
   title       String
   price       Float
   imageUrl    String
   sourceUrl   String   @unique
-  
+
   vendor      String?
   productType String?
   tags        String[]
@@ -81,7 +81,7 @@ model Product {
 
   originalDesc   String?  @db.Text
   generatedDesc  String?  @db.Text
-  generatedImage String?  
+  generatedImage String?
   generatedTags  String?  @db.Text
   condition      String?
   era            String?
@@ -94,10 +94,28 @@ model Product {
   lastSourced    DateTime?
   createdAt      DateTime @default(now())
 
+  // Profit Calculator Fields
+  estimatedProfit    Float?    // Calculated: price - supplierPrice - estimated fees
+  profitMarginPct    Float?    // Percentage profit margin
+
+  // Trending/Viral Fields
+  viralScore         Float?    // 0-100 score from trending algorithm
+  viralPotential     String?   // 'high' | 'medium' | 'low'
+  viralReasons       String[]  // Array of reasons why it's trending
+  trendingSource     String?   // 'tiktok' | 'google' | 'manual'
+  lastTrendCheck     DateTime?
+
+  // Import tracking
+  importSource       String?   // 'aliexpress' | 'amazon' | 'temu' | 'manual'
+  supplierRating     Float?    // Product rating from supplier
+  supplierReviews    Int?      // Number of reviews/orders
+  shippingTime       String?   // "7-14 days"
+
   publishedStores PublishedProduct[]
 
   @@index([supplierUrl, lastSourced(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+  @@index([viralScore(sort: Desc)])
 }
 
 // STORE CONNECTIONS

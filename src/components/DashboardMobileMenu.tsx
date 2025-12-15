@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X, LogOut, User, Settings } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, Menu, X, LogOut, User, Settings, Flame } from 'lucide-react';
 
 export default function DashboardMobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -60,6 +60,7 @@ export default function DashboardMobileMenu() {
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <MobileSidebarItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Product Feed" onClick={() => setIsOpen(false)} />
+            <MobileSidebarItem href="/dashboard/winning-products" icon={<Flame size={20} />} label="Winning Products" onClick={() => setIsOpen(false)} highlight />
             <MobileSidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/background-changer" icon={<ImagePlus size={20} />} label="Magic Studio" onClick={() => setIsOpen(false)} />
             <MobileSidebarItem href="/dashboard/tools" icon={<Wand2 size={20} />} label="AI Tools" onClick={() => setIsOpen(false)} />
@@ -92,15 +93,20 @@ export default function DashboardMobileMenu() {
   );
 }
 
-function MobileSidebarItem({ href, icon, label, onClick }: { href: string, icon: React.ReactNode, label: string, onClick: () => void }) {
+function MobileSidebarItem({ href, icon, label, onClick, highlight }: { href: string, icon: React.ReactNode, label: string, onClick: () => void, highlight?: boolean }) {
     return (
-        <Link 
-            href={href} 
+        <Link
+            href={href}
             onClick={onClick}
-            className="flex items-center gap-3 p-3.5 rounded-xl text-slate-300 hover:bg-white/10 hover:text-white transition-all active:scale-95"
+            className={`flex items-center gap-3 p-3.5 rounded-xl transition-all active:scale-95 ${
+                highlight
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+            }`}
         >
-            <span className="text-orange-500">{icon}</span>
+            <span className={highlight ? '' : 'text-orange-500'}>{icon}</span>
             <span className="font-medium text-sm">{label}</span>
+            {highlight && <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">NEW</span>}
         </Link>
     )
 }

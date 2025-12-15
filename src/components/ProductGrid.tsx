@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles, Upload } from "lucide-react";
+import { Search, Wand2, ExternalLink, Loader2, Eye, AlertCircle, Sparkles, Upload, DollarSign, TrendingUp, Flame } from "lucide-react";
 import ListingWizard from "./ListingWizard";
 import PublishModal from "./PublishModal";
 
@@ -65,10 +65,45 @@ export default function ProductGrid({ initialProducts }: { initialProducts: any[
                     
                     {/* DETAILS AREA */}
                     <div className="p-5 flex flex-col flex-1">
-                        <h3 className="font-bold text-slate-800 text-sm line-clamp-2 mb-4 h-10 leading-snug" title={product.title}>
+                        <h3 className="font-bold text-slate-800 text-sm line-clamp-2 mb-3 h-10 leading-snug" title={product.title}>
                             {product.title}
                         </h3>
-                        
+
+                        {/* Profit Indicator */}
+                        {product.supplierPrice && (
+                            <div className="mb-3 p-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                        <DollarSign size={12} className="text-green-600" />
+                                        <span className="text-[10px] text-green-700 font-semibold">Profit</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-bold text-green-600">
+                                            ${(product.price - product.supplierPrice - 9).toFixed(0)}
+                                        </div>
+                                        <div className="text-[9px] text-green-600">
+                                            {(((product.price - product.supplierPrice - 9) / product.price) * 100).toFixed(0)}% margin
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Viral Score Badge */}
+                        {product.viralScore && product.viralScore >= 70 && (
+                            <div className="mb-3 p-2 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                        <Flame size={12} className="text-orange-600" />
+                                        <span className="text-[10px] text-orange-700 font-semibold">Winning Product</span>
+                                    </div>
+                                    <div className="text-sm font-bold text-orange-600">
+                                        {product.viralScore}/100
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
                             <div className="flex justify-between items-center">
                                 <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Resell Price</span>
