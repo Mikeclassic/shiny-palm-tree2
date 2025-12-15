@@ -96,14 +96,17 @@ export async function POST(req: Request) {
 }
 
 async function publishToShopify(product: any, store: any) {
-  // Convert plain text to HTML (preserve line breaks and formatting)
+  // Use generated description if available (already HTML formatted from AI)
+  // Otherwise convert plain text to HTML
   const description = product.generatedDesc || product.originalDesc || "";
-  const formattedDescription = description
-    .split('\n')
-    .map((line: string) => line.trim())
-    .filter((line: string) => line.length > 0)
-    .map((line: string) => `<p>${line}</p>`)
-    .join('');
+  const formattedDescription = description.includes('<')
+    ? description // Already HTML formatted
+    : description // Convert plain text to HTML
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0)
+        .map((line: string) => `<p>${line}</p>`)
+        .join('');
 
   const shopifyProduct = {
     product: {
@@ -150,14 +153,17 @@ async function publishToShopify(product: any, store: any) {
 }
 
 async function publishToWooCommerce(product: any, store: any) {
-  // Convert plain text to HTML (preserve line breaks and formatting)
+  // Use generated description if available (already HTML formatted from AI)
+  // Otherwise convert plain text to HTML
   const description = product.generatedDesc || product.originalDesc || "";
-  const formattedDescription = description
-    .split('\n')
-    .map((line: string) => line.trim())
-    .filter((line: string) => line.length > 0)
-    .map((line: string) => `<p>${line}</p>`)
-    .join('');
+  const formattedDescription = description.includes('<')
+    ? description // Already HTML formatted
+    : description // Convert plain text to HTML
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0)
+        .map((line: string) => `<p>${line}</p>`)
+        .join('');
 
   const wooProduct = {
     name: product.title,

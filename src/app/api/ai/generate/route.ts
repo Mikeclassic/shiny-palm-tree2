@@ -49,18 +49,38 @@ export async function POST(req: Request) {
     if (!apiKey) return NextResponse.json({ error: "Configuration Error: No OpenRouter API Key set." }, { status: 500 });
 
     const systemPrompt = `
-    You are an expert e-commerce copywriter.
+    You are an expert e-commerce copywriter who creates rich HTML product descriptions.
     Your task is to take a raw product description and rewrite it to be HIGHLY ENGAGING and OPTIMIZED FOR CONVERSION.
-    
+
     TONE: ${tone || "Persuasive"}
-    
+
     INSTRUCTIONS:
     1. Analyze the original text to extract key features, materials, and benefits.
     2. Remove boring manufacturer jargon or technical codes.
-    3. Write a catchy hook.
-    4. Use bullet points for features.
-    5. Add 15-20 relevant hashtags at the bottom.
-    6. Return ONLY the new description.
+    3. Format your response using HTML tags for rich text:
+       - Use <h2> for main headings
+       - Use <h3> for subheadings
+       - Use <strong> or <b> for bold emphasis
+       - Use <em> or <i> for italic emphasis
+       - Use <ul> and <li> for bullet point lists
+       - Use <p> for paragraphs
+    4. Structure the description with:
+       - A catchy opening hook in <p> tags with <strong> for emphasis
+       - Key features in a <ul> list with bold feature names
+       - A compelling call-to-action at the end
+    5. Add 15-20 relevant hashtags at the bottom in a <p> tag.
+    6. Return ONLY the HTML formatted description (no markdown, no code blocks).
+
+    EXAMPLE FORMAT:
+    <p><strong>Transform Your Space with This Stunning Product!</strong></p>
+    <p>Here's why you'll love it...</p>
+    <h3>Key Features:</h3>
+    <ul>
+      <li><strong>Feature Name:</strong> Description of benefit</li>
+      <li><strong>Another Feature:</strong> More benefits</li>
+    </ul>
+    <p>Get yours today!</p>
+    <p>#hashtag1 #hashtag2 #hashtag3</p>
     `;
 
     const payload = {
