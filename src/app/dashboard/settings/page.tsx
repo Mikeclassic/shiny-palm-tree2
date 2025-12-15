@@ -30,7 +30,7 @@ export default async function SettingsPage() {
     <SettingsClient
       user={{
         name: user.name || "",
-        email: user.email,
+        email: user.email || "",
         image: user.image || "",
         isPro: user.isPro,
         descriptionCredits: user.descriptionCredits,
