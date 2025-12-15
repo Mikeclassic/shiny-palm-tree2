@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Store, ShoppingCart, Plus, Check, X, ExternalLink } from "lucide-react";
 
 interface StoreConnection {
@@ -17,6 +18,7 @@ interface StoreConnectionsClientProps {
 }
 
 export default function StoreConnectionsClient({ stores }: StoreConnectionsClientProps) {
+  const searchParams = useSearchParams();
   const [showShopifyModal, setShowShopifyModal] = useState(false);
   const [showWooModal, setShowWooModal] = useState(false);
   const [shopifyDomain, setShopifyDomain] = useState("");
@@ -27,6 +29,28 @@ export default function StoreConnectionsClient({ stores }: StoreConnectionsClien
     consumerSecret: "",
   });
   const [loading, setLoading] = useState(false);
+
+  // Handle success/error messages from URL params
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+
+    if (success === 'shopify_connected') {
+      alert('Shopify store connected successfully!');
+      // Clear URL params
+      window.history.replaceState({}, '', '/dashboard/stores');
+    }
+
+    if (error === 'store_already_connected') {
+      alert('This store is already connected to another account. Please disconnect it from the other account first or contact support.');
+      window.history.replaceState({}, '', '/dashboard/stores');
+    }
+
+    if (error === 'shopify_connection_failed') {
+      alert('Failed to connect Shopify store. Please try again.');
+      window.history.replaceState({}, '', '/dashboard/stores');
+    }
+  }, [searchParams]);
 
   const connectShopify = () => {
     if (!shopifyDomain) {

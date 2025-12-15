@@ -58,7 +58,19 @@ export async function GET(req: Request) {
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/sign-in`);
     }
 
-    // Save or update store connection
+    // Check if store is already connected to another user
+    const existingStore = await db.store.findUnique({
+      where: { shopifyDomain: shop },
+      include: { user: true },
+    });
+
+    if (existingStore && existingStore.userId !== user.id) {
+      return NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}/dashboard/stores?error=store_already_connected`
+      );
+    }
+
+    // Save or update store connection (only for current user)
     await db.store.upsert({
       where: {
         shopifyDomain: shop,
@@ -72,6 +84,7 @@ export async function GET(req: Request) {
         shopifyAccessToken: access_token,
       },
       update: {
+        userId: user.id, // Ensure ownership stays with current user
         shopifyAccessToken: access_token,
         storeName: shopDetails.name || shop,
         isActive: true,
