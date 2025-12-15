@@ -39,3 +39,12 @@
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   @apply bg-slate-300;
 }
+
+/* Completely hide scrollbar for mobile tabs */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
