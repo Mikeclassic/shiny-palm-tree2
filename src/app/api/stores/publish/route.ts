@@ -96,10 +96,19 @@ export async function POST(req: Request) {
 }
 
 async function publishToShopify(product: any, store: any) {
+  // Convert plain text to HTML (preserve line breaks and formatting)
+  const description = product.generatedDesc || product.originalDesc || "";
+  const formattedDescription = description
+    .split('\n')
+    .map((line: string) => line.trim())
+    .filter((line: string) => line.length > 0)
+    .map((line: string) => `<p>${line}</p>`)
+    .join('');
+
   const shopifyProduct = {
     product: {
       title: product.title,
-      body_html: product.generatedDesc || product.originalDesc || "",
+      body_html: formattedDescription,
       vendor: product.vendor || "ClearSeller",
       product_type: product.productType || "General",
       tags: product.tags?.join(", ") || "",
@@ -136,16 +145,25 @@ async function publishToShopify(product: any, store: any) {
 
   return {
     externalId: data.product.id.toString(),
-    externalUrl: `https://${store.shopifyDomain.replace(".myshopify.com", ".com")}/products/${productHandle}`,
+    externalUrl: `https://${store.shopifyDomain}/products/${productHandle}`,
   };
 }
 
 async function publishToWooCommerce(product: any, store: any) {
+  // Convert plain text to HTML (preserve line breaks and formatting)
+  const description = product.generatedDesc || product.originalDesc || "";
+  const formattedDescription = description
+    .split('\n')
+    .map((line: string) => line.trim())
+    .filter((line: string) => line.length > 0)
+    .map((line: string) => `<p>${line}</p>`)
+    .join('');
+
   const wooProduct = {
     name: product.title,
     type: "simple",
     regular_price: product.price.toString(),
-    description: product.generatedDesc || product.originalDesc || "",
+    description: formattedDescription,
     short_description: product.title,
     categories: product.productType ? [{ name: product.productType }] : [],
     tags: product.tags?.map((tag: string) => ({ name: tag })) || [],
