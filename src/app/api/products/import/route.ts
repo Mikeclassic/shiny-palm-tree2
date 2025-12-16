@@ -86,8 +86,8 @@ export async function POST(req: NextRequest) {
       data: {
         title: body.title,
         price: suggestedPrice,
-        imageUrl: body.images[0] || '',
-        sourceUrl: body.supplierUrl,
+        imageUrl: body.images && body.images.length > 0 ? body.images[0] : '',
+        sourceUrl: body.supplierUrl, // Using supplierUrl for uniqueness (sourceUrl is @unique in schema)
         originalDesc: body.description || '',
         supplierUrl: body.supplierUrl,
         supplierPrice: body.supplierPrice,

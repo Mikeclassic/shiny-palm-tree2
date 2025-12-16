@@ -88,40 +88,125 @@ class AliExpressScraper {
   }
 
   extractImages() {
+    console.log('[AliExpress] Extracting images...');
     const images = [];
+
+    // Method 1: Look for product gallery images
     const selectors = [
       '[class*="ImageView"] img',
       '[class*="Magnifier"] img',
       '.images-view-item img',
-      'img[class*="magnifier"]'
+      'img[class*="magnifier"]',
+      'img[class*="slider"]',
+      '[class*="mainImage"] img',
+      '[class*="productImage"] img'
     ];
 
     for (const selector of selectors) {
       const elements = document.querySelectorAll(selector);
+      console.log(`[AliExpress] Trying selector "${selector}": found ${elements.length} images`);
+
       elements.forEach(img => {
-        let src = img.src || img.getAttribute('data-src');
+        let src = img.src || img.getAttribute('data-src') || img.getAttribute('src');
         if (src && !src.includes('avatar') && !images.includes(src)) {
-          src = src.split('_')[0] + '_640x640.jpg';
-          if (src.startsWith('http')) images.push(src);
+          // Clean up URL and get higher quality version
+          src = src.split('_')[0];
+          if (!src.endsWith('.jpg') && !src.endsWith('.png')) {
+            src = src + '_640x640.jpg';
+          }
+          if (src.startsWith('http')) {
+            console.log('[AliExpress] Adding image:', src.substring(0, 80) + '...');
+            images.push(src);
+          }
         }
       });
-      if (images.length > 0) break;
+      if (images.length > 0) {
+        console.log(`[AliExpress] Found ${images.length} images with selector "${selector}"`);
+        break;
+      }
     }
 
-    console.log('[AliExpress] Images:', images.length);
+    // Method 2: Look for any large product images if method 1 failed
+    if (images.length === 0) {
+      console.log('[AliExpress] No images found with selectors, trying all img tags...');
+      const allImages = document.querySelectorAll('img');
+      allImages.forEach(img => {
+        const src = img.src;
+        if (src && src.includes('alicdn.com') && !src.includes('avatar') &&
+            (img.width > 200 || img.naturalWidth > 200)) {
+          let cleanSrc = src.split('_')[0] + '_640x640.jpg';
+          if (!images.includes(cleanSrc)) {
+            console.log('[AliExpress] Found large image:', cleanSrc.substring(0, 80) + '...');
+            images.push(cleanSrc);
+          }
+        }
+      });
+    }
+
+    console.log('[AliExpress] Total images extracted:', images.length);
+    console.log('[AliExpress] Image URLs:', images);
     return images.slice(0, 8);
   }
 
   extractDescription() {
+    console.log('[AliExpress] Extracting description...');
+
+    // Method 1: Look for description meta tag
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      const desc = metaDesc.getAttribute('content');
+      if (desc && desc.length > 50) {
+        console.log('[AliExpress] Description from meta tag:', desc.substring(0, 100) + '...');
+        return desc.substring(0, 500);
+      }
+    }
+
+    // Method 2: Look for product description elements
     const selectors = [
       '[class*="description"]',
-      '.product-description'
+      '[class*="Description"]',
+      '.product-description',
+      '[class*="product-desc"]',
+      '[class*="productDescription"]',
+      '[class*="detail"]'
     ];
 
     for (const selector of selectors) {
       const el = document.querySelector(selector);
-      if (el) return el.textContent.trim().substring(0, 1000);
+      if (el && el.textContent.trim().length > 50) {
+        const desc = el.textContent.trim().substring(0, 500);
+        console.log('[AliExpress] Description from selector "' + selector + '":', desc.substring(0, 100) + '...');
+        return desc;
+      }
     }
+
+    // Method 3: Try to get product highlights/features
+    const highlights = [];
+    const featureSelectors = ['[class*="highlight"]', '[class*="feature"]', '[class*="bullet"]'];
+    for (const selector of featureSelectors) {
+      document.querySelectorAll(selector).forEach(el => {
+        const text = el.textContent.trim();
+        if (text.length > 10 && text.length < 200) {
+          highlights.push(text);
+        }
+      });
+      if (highlights.length > 0) break;
+    }
+
+    if (highlights.length > 0) {
+      const desc = highlights.slice(0, 5).join('. ');
+      console.log('[AliExpress] Description from highlights:', desc.substring(0, 100) + '...');
+      return desc.substring(0, 500);
+    }
+
+    // Method 4: Use product title as fallback description
+    const title = this.extractTitle();
+    if (title) {
+      console.log('[AliExpress] Using title as description fallback');
+      return `${title}. High quality product from verified AliExpress seller.`;
+    }
+
+    console.log('[AliExpress] No description found');
     return '';
   }
 
