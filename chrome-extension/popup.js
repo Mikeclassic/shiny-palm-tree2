@@ -19,7 +19,7 @@ function setupEventListeners() {
   // Dashboard buttons
   document.getElementById('open-dashboard')?.addEventListener('click', () => {
     chrome.storage.sync.get(['apiUrl'], (result) => {
-      const apiUrl = result.apiUrl || 'http://localhost:3000';
+      const apiUrl = result.apiUrl || 'https://clearseller.com';
       chrome.tabs.create({ url: `${apiUrl}/dashboard` });
     });
   });
@@ -118,7 +118,7 @@ function loadHistory() {
 // Load settings
 function loadSettings() {
   chrome.storage.sync.get(['apiUrl', 'autoDetect', 'showFloatingWidget'], (result) => {
-    document.getElementById('api-url').value = result.apiUrl || 'http://localhost:3000';
+    document.getElementById('api-url').value = result.apiUrl || 'https://clearseller.com';
 
     if (result.autoDetect !== false) {
       document.getElementById('auto-detect-toggle').classList.add('active');

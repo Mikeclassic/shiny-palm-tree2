@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut, Settings, Flame } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut, Settings, Flame, Download } from 'lucide-react';
 import DashboardMobileMenu from "@/components/DashboardMobileMenu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="space-y-1 flex-1">
           <SidebarItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Product Feed" />
           <SidebarItem href="/dashboard/winning-products" icon={<Flame size={20} />} label="Winning Products" highlight />
+          <SidebarItem href="/download-extension" icon={<Download size={20} />} label="Get Extension" special />
           <SidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" />
           <SidebarItem href="/dashboard/background-changer" icon={<ImagePlus size={20} />} label="Magic Studio" />
           <SidebarItem href="/dashboard/tools" icon={<Wand2 size={20} />} label="AI Tools" />
@@ -60,17 +61,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function SidebarItem({ href, icon, label, highlight }: { href: string, icon: React.ReactNode, label: string, highlight?: boolean }) {
+function SidebarItem({ href, icon, label, highlight, special }: { href: string, icon: React.ReactNode, label: string, highlight?: boolean, special?: boolean }) {
     return (
         <Link
             href={href}
             className={`flex items-center gap-3 p-3 rounded-lg transition-all group ${
                 highlight
                     ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600'
+                    : special
+                    ? 'bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white'
             }`}
         >
-            <span className={highlight ? '' : 'group-hover:text-action transition-colors'}>{icon}</span>
+            <span className={highlight || special ? '' : 'group-hover:text-action transition-colors'}>{icon}</span>
             <span className="font-medium">{label}</span>
             {highlight && <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">NEW</span>}
         </Link>

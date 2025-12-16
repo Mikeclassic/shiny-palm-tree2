@@ -16,15 +16,29 @@
 
   function init() {
     console.log('[ClearSeller] Extension loaded');
+    console.log('[ClearSeller] URL:', window.location.href);
+    console.log('[ClearSeller] Scraper available:', !!window.productScraper);
+    console.log('[ClearSeller] Detector available:', !!window.winningDetector);
+    console.log('[ClearSeller] Config available:', typeof CONFIG !== 'undefined');
 
     // Check if we're on a product page
-    if (window.productScraper && window.productScraper.isProductPage()) {
-      console.log('[ClearSeller] Product page detected');
+    if (window.productScraper) {
+      const isProduct = window.productScraper.isProductPage();
+      console.log('[ClearSeller] Is product page:', isProduct);
 
-      // Wait a bit for dynamic content to load
-      setTimeout(() => {
-        scrapeAndAnalyze();
-      }, 2000);
+      if (isProduct) {
+        console.log('[ClearSeller] Product page detected - will scrape in 3 seconds');
+
+        // Wait a bit for dynamic content to load
+        setTimeout(() => {
+          scrapeAndAnalyze();
+        }, 3000);
+      } else {
+        console.log('[ClearSeller] Not a product page - checking for search/category page');
+        // Auto-detector will handle search pages
+      }
+    } else {
+      console.error('[ClearSeller] Product scraper not loaded!');
     }
   }
 

@@ -14,8 +14,8 @@
     "https://*.amazon.com/*",
     "https://*.amazon.co.uk/*",
     "https://*.temu.com/*",
-    "http://localhost:3000/*",
-    "https://*.vercel.app/*"
+    "https://clearseller.com/*",
+    "https://*.clearseller.com/*"
   ],
   "background": {
     "service_worker": "background.js"

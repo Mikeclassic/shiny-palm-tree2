@@ -1,7 +1,7 @@
 // Configuration for the extension
 const CONFIG = {
-  // API endpoint - update this to your production URL
-  API_BASE_URL: 'http://localhost:3000',
+  // API endpoint - production URL
+  API_BASE_URL: 'https://clearseller.com',
 
   // Winning product criteria thresholds
   WINNING_PRODUCT_CRITERIA: {
