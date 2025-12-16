@@ -7,6 +7,7 @@ const nextConfig = {
             // AliExpress CDN - for supplier images
             { protocol: 'https', hostname: 'ae01.alicdn.com' },
             { protocol: 'https', hostname: '*.alicdn.com' },
+            { protocol: 'https', hostname: '*.aliexpress-media.com' },
             // Replicate - for AI-generated images
             { protocol: 'https', hostname: 'replicate.delivery' },
             { protocol: 'https', hostname: 'replicate.com' },
