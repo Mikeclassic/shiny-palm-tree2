@@ -235,26 +235,6 @@ class AliExpressScraper {
       }
     }
 
-    // Method 5: Build description from title + key features
-    const title = this.extractTitle();
-    const rating = this.extractRating();
-    const reviews = this.extractReviewCount();
-    const orders = this.extractOrderCount();
-
-    if (title) {
-      let desc = title;
-      if (rating && reviews) {
-        desc += `. Rated ${rating}/5 stars with ${reviews} reviews`;
-      }
-      if (orders) {
-        desc += `. ${orders}+ orders sold`;
-      }
-      desc += '. High quality product from verified AliExpress seller. Fast shipping available.';
-
-      console.log('[AliExpress] Built description from product data');
-      return desc.substring(0, 500);
-    }
-
     console.log('[AliExpress] No description found');
     return '';
   }
