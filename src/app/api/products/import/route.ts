@@ -54,6 +54,14 @@ export async function POST(req: NextRequest) {
 
     const body: ImportProductRequest = await req.json();
 
+    console.log('[Import API] Received import request:', {
+      title: body.title,
+      images: body.images,
+      imagesCount: body.images?.length,
+      description: body.description?.substring(0, 100),
+      supplierUrl: body.supplierUrl
+    });
+
     // Validate required fields
     if (!body.title || !body.supplierUrl || !body.supplierPrice) {
       return NextResponse.json({
@@ -82,11 +90,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Create product
+    const imageUrl = body.images && body.images.length > 0 ? body.images[0] : '';
+    console.log('[Import API] Creating product with imageUrl:', imageUrl);
+    console.log('[Import API] Description:', body.description);
+
     const product = await db.product.create({
       data: {
         title: body.title,
         price: suggestedPrice,
-        imageUrl: body.images && body.images.length > 0 ? body.images[0] : '',
+        imageUrl: imageUrl,
         sourceUrl: body.supplierUrl, // Using supplierUrl for uniqueness (sourceUrl is @unique in schema)
         originalDesc: body.description || '',
         supplierUrl: body.supplierUrl,
@@ -102,6 +114,9 @@ export async function POST(req: NextRequest) {
         tags: [],
       }
     });
+
+    console.log('[Import API] Product created with ID:', product.id);
+    console.log('[Import API] Product imageUrl saved as:', product.imageUrl);
 
     return NextResponse.json({
       success: true,

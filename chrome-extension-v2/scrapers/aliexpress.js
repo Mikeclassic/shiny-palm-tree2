@@ -151,59 +151,80 @@ class AliExpressScraper {
   extractDescription() {
     console.log('[AliExpress] Extracting description...');
 
-    // Method 1: Look for description meta tag
+    // Method 1: Look for description meta tag (most reliable)
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
       const desc = metaDesc.getAttribute('content');
-      if (desc && desc.length > 50) {
+      if (desc && desc.length > 50 && !desc.includes('AliExpress Mobile')) {
         console.log('[AliExpress] Description from meta tag:', desc.substring(0, 100) + '...');
         return desc.substring(0, 500);
       }
     }
 
-    // Method 2: Look for product description elements
-    const selectors = [
-      '[class*="description"]',
-      '[class*="Description"]',
-      '.product-description',
-      '[class*="product-desc"]',
-      '[class*="productDescription"]',
-      '[class*="detail"]'
-    ];
-
-    for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el && el.textContent.trim().length > 50) {
-        const desc = el.textContent.trim().substring(0, 500);
-        console.log('[AliExpress] Description from selector "' + selector + '":', desc.substring(0, 100) + '...');
-        return desc;
+    // Method 2: Look for og:description
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) {
+      const desc = ogDesc.getAttribute('content');
+      if (desc && desc.length > 50) {
+        console.log('[AliExpress] Description from og:description:', desc.substring(0, 100) + '...');
+        return desc.substring(0, 500);
       }
     }
 
-    // Method 3: Try to get product highlights/features
-    const highlights = [];
-    const featureSelectors = ['[class*="highlight"]', '[class*="feature"]', '[class*="bullet"]'];
-    for (const selector of featureSelectors) {
-      document.querySelectorAll(selector).forEach(el => {
-        const text = el.textContent.trim();
-        if (text.length > 10 && text.length < 200) {
-          highlights.push(text);
-        }
-      });
-      if (highlights.length > 0) break;
-    }
+    // Method 3: Extract from product specifications/features (look for structured content)
+    const specTexts = [];
+    document.querySelectorAll('[class*="specification"], [class*="Specification"], [class*="spec"]').forEach(el => {
+      const text = el.textContent.trim();
+      if (text.length > 20 && text.length < 300 && !text.includes('Description') && !text.includes('Report')) {
+        specTexts.push(text);
+      }
+    });
 
-    if (highlights.length > 0) {
-      const desc = highlights.slice(0, 5).join('. ');
-      console.log('[AliExpress] Description from highlights:', desc.substring(0, 100) + '...');
+    if (specTexts.length > 0) {
+      const desc = specTexts.slice(0, 3).join('. ');
+      console.log('[AliExpress] Description from specifications:', desc.substring(0, 100) + '...');
       return desc.substring(0, 500);
     }
 
-    // Method 4: Use product title as fallback description
+    // Method 4: Try to extract product overview text
+    const overviewSelectors = [
+      '[class*="overview"]',
+      '[class*="Overview"]',
+      '[class*="productInfo"]',
+      '[class*="ProductInfo"]'
+    ];
+
+    for (const selector of overviewSelectors) {
+      const el = document.querySelector(selector);
+      if (el) {
+        const text = el.textContent.trim();
+        // Filter out UI elements
+        if (text.length > 50 && !text.includes('Description') && !text.includes('Report') &&
+            !text.includes('View more') && !text.includes('seller')) {
+          console.log('[AliExpress] Description from overview:', text.substring(0, 100) + '...');
+          return text.substring(0, 500);
+        }
+      }
+    }
+
+    // Method 5: Build description from title + key features
     const title = this.extractTitle();
+    const rating = this.extractRating();
+    const reviews = this.extractReviewCount();
+    const orders = this.extractOrderCount();
+
     if (title) {
-      console.log('[AliExpress] Using title as description fallback');
-      return `${title}. High quality product from verified AliExpress seller.`;
+      let desc = title;
+      if (rating && reviews) {
+        desc += `. Rated ${rating}/5 stars with ${reviews} reviews`;
+      }
+      if (orders) {
+        desc += `. ${orders}+ orders sold`;
+      }
+      desc += '. High quality product from verified AliExpress seller. Fast shipping available.';
+
+      console.log('[AliExpress] Built description from product data');
+      return desc.substring(0, 500);
     }
 
     console.log('[AliExpress] No description found');
