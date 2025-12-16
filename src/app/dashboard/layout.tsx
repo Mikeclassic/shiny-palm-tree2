@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut, Settings, Flame, Download } from 'lucide-react';
+import { LayoutDashboard, Wand2, CreditCard, Zap, Bookmark, ImagePlus, LogOut, Settings, Flame, Download, Link2 } from 'lucide-react';
 import DashboardMobileMenu from "@/components/DashboardMobileMenu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="space-y-1 flex-1">
           <SidebarItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Product Feed" />
           <SidebarItem href="/dashboard/winning-products" icon={<Flame size={20} />} label="Winning Products" highlight />
-          <SidebarItem href="/download-extension" icon={<Download size={20} />} label="Get Extension" special />
+          <SidebarItem href="/dashboard/import-from-link" icon={<Link2 size={20} />} label="Import from Link" special />
+          <SidebarItem href="/download-extension" icon={<Download size={20} />} label="Get Extension" />
           <SidebarItem href="/dashboard/saved" icon={<Bookmark size={20} />} label="Saved Listings" />
           <SidebarItem href="/dashboard/background-changer" icon={<ImagePlus size={20} />} label="Magic Studio" />
           <SidebarItem href="/dashboard/tools" icon={<Wand2 size={20} />} label="AI Tools" />
