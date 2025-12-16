@@ -268,17 +268,28 @@
 
     document.body.appendChild(modal);
 
-    // Add event listeners
-    modal.querySelector('.clearseller-modal-close').addEventListener('click', () => modal.remove());
-    modal.querySelector('.clearseller-modal-overlay').addEventListener('click', (e) => {
-      if (e.target.classList.contains('clearseller-modal-overlay')) {
+    // Add event listeners with null checks
+    const closeBtn = modal.querySelector('.clearseller-modal-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => modal.remove());
+    }
+
+    const overlay = modal.querySelector('.clearseller-modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('clearseller-modal-overlay')) {
+          modal.remove();
+        }
+      });
+    }
+
+    const importBtn = document.getElementById('clearseller-import-from-modal');
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
         modal.remove();
-      }
-    });
-    document.getElementById('clearseller-import-from-modal')?.addEventListener('click', () => {
-      modal.remove();
-      handleImport();
-    });
+        handleImport();
+      });
+    }
   }
 
   function createScoreBar(label, score) {
