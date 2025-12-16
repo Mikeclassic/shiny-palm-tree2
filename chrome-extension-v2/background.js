@@ -19,8 +19,10 @@ const CONFIG = {
 };
 
 console.log('========================================');
-console.log('[ClearSeller] Background service worker loaded - v1.0.2 - TIMESTAMP:', new Date().toISOString());
+console.log('🔥🔥🔥 NEW VERSION V2 FRESH LOADED 🔥🔥🔥');
+console.log('[ClearSeller] Background service worker loaded - v1.0.3 - TIMESTAMP:', new Date().toISOString());
 console.log('[Background] CONFIG.API_BASE_URL:', CONFIG.API_BASE_URL);
+console.log('🔥🔥🔥 NEW VERSION V2 FRESH LOADED 🔥🔥🔥');
 console.log('========================================');
 
 // Listen for messages from content scripts

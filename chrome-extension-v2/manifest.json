@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ClearSeller - Winning Product Finder",
-  "version": "1.0.2",
+  "name": "ClearSeller V2 FRESH",
+  "version": "1.0.3",
   "description": "Automatically detect and import winning dropshipping products from AliExpress, Amazon, and Temu",
   "permissions": [
     "storage",
