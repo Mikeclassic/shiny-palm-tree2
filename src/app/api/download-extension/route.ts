@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import archiver from 'archiver';
-import { Readable } from 'stream';
 
 export async function GET() {
   try {
@@ -14,15 +12,23 @@ export async function GET() {
     });
 
     // Convert archive to a buffer
-    const chunks: Buffer[] = [];
+    const chunks: Uint8Array[] = [];
 
-    archive.on('data', (chunk: Buffer) => {
+    archive.on('data', (chunk: Uint8Array) => {
       chunks.push(chunk);
     });
 
-    const archivePromise = new Promise<Buffer>((resolve, reject) => {
+    const archivePromise = new Promise<Uint8Array>((resolve, reject) => {
       archive.on('end', () => {
-        resolve(Buffer.concat(chunks));
+        // Concatenate all chunks into one Uint8Array
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+        resolve(result);
       });
       archive.on('error', reject);
     });
@@ -36,8 +42,8 @@ export async function GET() {
     // Wait for archive to complete
     const zipBuffer = await archivePromise;
 
-    // Return the zip file
-    return new NextResponse(zipBuffer, {
+    // Return the zip file as a blob
+    return new NextResponse(zipBuffer.buffer as ArrayBuffer, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': 'attachment; filename="clearseller-extension.zip"',
