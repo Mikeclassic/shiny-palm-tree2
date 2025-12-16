@@ -28,9 +28,9 @@ interface ProductData {
 
 interface ConnectedStore {
   id: string;
-  name: string;
+  storeName: string;
   platform: string;
-  isActive: boolean;
+  storeUrl: string;
 }
 
 export default function ImportFromLink() {
@@ -59,11 +59,10 @@ export default function ImportFromLink() {
     try {
       const response = await fetch('/api/stores/list');
       const data = await response.json();
-      if (data.stores) {
-        setConnectedStores(data.stores.filter((store: ConnectedStore) => store.isActive));
-        if (data.stores.length > 0) {
-          setSelectedStore(data.stores[0].id);
-        }
+      console.log('[Import] Fetched stores:', data);
+      if (data.stores && data.stores.length > 0) {
+        setConnectedStores(data.stores);
+        setSelectedStore(data.stores[0].id);
       }
     } catch (err) {
       console.error('Error fetching stores:', err);
@@ -382,10 +381,38 @@ export default function ImportFromLink() {
                   {/* Variants */}
                   {productData.variants && productData.variants.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900 mb-2">Variants</h3>
-                      <p className="text-sm text-slate-600">
-                        {productData.variants.length} variant types available
-                      </p>
+                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Variants</h3>
+                      <div className="space-y-3">
+                        {productData.variants.map((variant: any, idx: number) => (
+                          <div key={idx} className="border-2 border-slate-200 rounded-lg p-3">
+                            <div className="font-medium text-slate-900 mb-2">{variant.name || `Variant ${idx + 1}`}</div>
+                            {variant.values && variant.values.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {variant.values.slice(0, 5).map((value: any, vIdx: number) => (
+                                  <div key={vIdx} className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-md border border-slate-200">
+                                    {value.image && (
+                                      <div className="relative w-6 h-6 rounded">
+                                        <Image
+                                          src={value.image.startsWith('//') ? `https:${value.image}` : value.image}
+                                          alt={value.name}
+                                          fill
+                                          className="object-cover rounded"
+                                        />
+                                      </div>
+                                    )}
+                                    <span className="text-xs text-slate-700">{value.name}</span>
+                                  </div>
+                                ))}
+                                {variant.values.length > 5 && (
+                                  <span className="text-xs text-slate-500 px-2 py-1">
+                                    +{variant.values.length - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -476,8 +503,20 @@ export default function ImportFromLink() {
                             />
                           )}
                           <div>
-                            <div className="font-semibold text-slate-900">
-                              {review.buyer?.buyerTitle || 'Anonymous'}
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900">
+                                {review.buyer?.buyerTitle || 'Anonymous'}
+                              </span>
+                              {review.buyer?.buyerCountry && (
+                                <img
+                                  src={`https://flagcdn.com/w20/${review.buyer.buyerCountry.toLowerCase()}.png`}
+                                  alt={review.buyer.buyerCountry}
+                                  className="w-4 h-3 object-cover rounded-sm"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              )}
                             </div>
                             <div className="text-xs text-slate-500">
                               {review.buyer?.buyerCountry} • {review.review?.reviewDate}
@@ -574,7 +613,7 @@ export default function ImportFromLink() {
                   >
                     {connectedStores.map((store) => (
                       <option key={store.id} value={store.id}>
-                        {store.name} ({store.platform})
+                        {store.storeName} ({store.platform})
                       </option>
                     ))}
                   </select>

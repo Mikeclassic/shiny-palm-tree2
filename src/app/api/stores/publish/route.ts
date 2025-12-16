@@ -57,6 +57,11 @@ export async function POST(req: Request) {
           publishedAt: new Date(), // Mark as published
         }
       });
+
+      // Attach additional data for Shopify publishing
+      product.descriptionImages = productData.descriptionImages || [];
+      product.reviews = productData.reviews || [];
+      product.images = productData.images || [];
     } else if (productId) {
       // Get existing product
       product = await db.product.findUnique({
@@ -131,7 +136,7 @@ export async function POST(req: Request) {
 }
 
 async function publishToShopify(product: any, store: any) {
-  // Build description with text + description images
+  // Build description with text + description images + reviews
   let descriptionHtml = '';
 
   // Add main description text
@@ -148,12 +153,72 @@ async function publishToShopify(product: any, store: any) {
     descriptionHtml += textHtml;
   }
 
-  // Build complete product images array (main images + description images)
+  // Add description images if available (stored in product metadata)
+  if (product.descriptionImages && Array.isArray(product.descriptionImages)) {
+    descriptionHtml += '<div style="margin-top: 30px;"><h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px;">Product Details</h3>';
+    product.descriptionImages.forEach((img: string) => {
+      descriptionHtml += `<img src="${img}" style="width: 100%; max-width: 800px; margin-bottom: 15px;" />`;
+    });
+    descriptionHtml += '</div>';
+  }
+
+  // Add customer reviews if available
+  if (product.reviews && Array.isArray(product.reviews) && product.reviews.length > 0) {
+    descriptionHtml += '<div style="margin-top: 40px; border-top: 2px solid #e5e7eb; padding-top: 30px;"><h3 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Customer Reviews</h3>';
+
+    // Add first 10 reviews
+    product.reviews.slice(0, 10).forEach((review: any) => {
+      const stars = '⭐'.repeat(review.review?.reviewStarts || 0);
+      const reviewContent = review.review?.translation?.reviewContent || review.review?.reviewContent || '';
+      const buyerName = review.buyer?.buyerTitle || 'Anonymous';
+      const buyerCountry = review.buyer?.buyerCountry || '';
+      const reviewDate = review.review?.reviewDate || '';
+
+      descriptionHtml += `
+        <div style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+            <div>
+              <strong style="font-size: 16px;">${buyerName}</strong>
+              <p style="color: #6b7280; font-size: 13px; margin: 5px 0 0 0;">${buyerCountry} • ${reviewDate}</p>
+            </div>
+            <span style="font-size: 18px;">${stars}</span>
+          </div>
+          <p style="color: #374151; line-height: 1.6; margin: 10px 0;">${reviewContent}</p>
+      `;
+
+      // Add review images if available
+      if (review.review?.reviewImages && review.review.reviewImages.length > 0) {
+        descriptionHtml += '<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">';
+        review.review.reviewImages.forEach((img: string) => {
+          descriptionHtml += `<img src="${img}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 4px;" />`;
+        });
+        descriptionHtml += '</div>';
+      }
+
+      descriptionHtml += '</div>';
+    });
+
+    descriptionHtml += '</div>';
+  }
+
+  // Build complete product images array (all main images + description images)
   const allImages: any[] = [];
 
-  // Add main product image
-  if (product.generatedImage || product.imageUrl) {
+  // Add all main product images
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach((img: string) => {
+      allImages.push({ src: img });
+    });
+  } else if (product.generatedImage || product.imageUrl) {
+    // Fallback to single image
     allImages.push({ src: product.generatedImage || product.imageUrl });
+  }
+
+  // Add description images (limit to first 10 to avoid too many images)
+  if (product.descriptionImages && Array.isArray(product.descriptionImages)) {
+    product.descriptionImages.slice(0, 10).forEach((img: string) => {
+      allImages.push({ src: img });
+    });
   }
 
   const shopifyProduct = {
