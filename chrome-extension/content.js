@@ -126,6 +126,8 @@
   }
 
   function createImportButton() {
+    console.log('[ClearSeller] Creating import button...');
+
     // Remove existing button
     if (importButton) {
       importButton.remove();
@@ -144,7 +146,10 @@
       <span>Import to ClearSeller</span>
     `;
 
-    importButton.addEventListener('click', handleImport);
+    importButton.addEventListener('click', () => {
+      console.log('[ClearSeller] Import button clicked!');
+      handleImport();
+    });
 
     // Try to insert near product title or price
     const insertLocations = [
@@ -155,16 +160,27 @@
       document.body
     ];
 
+    let inserted = false;
     for (const location of insertLocations) {
-      if (location) {
+      if (location && location.parentNode) {
         location.parentNode.insertBefore(importButton, location.nextSibling);
+        console.log('[ClearSeller] Import button inserted after:', location.tagName);
+        inserted = true;
         break;
       }
+    }
+
+    if (!inserted) {
+      console.error('[ClearSeller] Failed to insert import button');
     }
   }
 
   function handleImport() {
+    console.log('[ClearSeller] handleImport called');
+    console.log('[ClearSeller] currentProductData:', currentProductData);
+
     if (!currentProductData) {
+      console.error('[ClearSeller] No product data available!');
       alert('Failed to extract product data. Please refresh and try again.');
       return;
     }
@@ -179,12 +195,15 @@
       <span>Importing...</span>
     `;
 
+    console.log('[ClearSeller] Sending import message to background...');
+
     // Send to background script for API call
     chrome.runtime.sendMessage({
       action: 'importProduct',
       product: currentProductData,
       analysis: analysisData
     }, (response) => {
+      console.log('[ClearSeller] Import response:', response);
       if (response.success) {
         importButton.innerHTML = `
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
