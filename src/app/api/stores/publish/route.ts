@@ -162,24 +162,74 @@ async function publishToShopify(product: any, store: any) {
     descriptionHtml += '</div>';
   }
 
-  // Add customer reviews if available
+  // Add customer reviews if available - INCLUDE ALL REVIEWS
   if (product.reviews && Array.isArray(product.reviews) && product.reviews.length > 0) {
     descriptionHtml += '<div style="margin-top: 40px; border-top: 2px solid #e5e7eb; padding-top: 30px;"><h3 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Customer Reviews</h3>';
 
-    // Add first 10 reviews
-    product.reviews.slice(0, 10).forEach((review: any) => {
+    // Add review statistics bar if available
+    if (product.reviewStats) {
+      const stats = product.reviewStats;
+      descriptionHtml += `
+        <div style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 48px; font-weight: bold; color: #f59e0b;">${stats.evarageStar || stats.averageStar || 0}</div>
+            <div style="color: #6b7280; font-size: 14px;">out of 5 stars</div>
+            <div style="color: #6b7280; font-size: 14px; margin-top: 5px;">${product.reviews.length} total reviews</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+            <div style="background: #dcfce7; border: 1px solid #86efac; padding: 10px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #16a34a;">${stats.fiveStarRate || 0}%</div>
+              <div style="font-size: 11px; color: #6b7280;">5⭐ (${stats.fiveStarNum || 0})</div>
+            </div>
+            <div style="background: #dbeafe; border: 1px solid #93c5fd; padding: 10px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb;">${stats.fourStarRate || 0}%</div>
+              <div style="font-size: 11px; color: #6b7280;">4⭐ (${stats.fourStarNum || 0})</div>
+            </div>
+            <div style="background: #fef3c7; border: 1px solid #fde047; padding: 10px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #ca8a04;">${stats.threeStarRate || 0}%</div>
+              <div style="font-size: 11px; color: #6b7280;">3⭐ (${stats.threeStarNum || 0})</div>
+            </div>
+            <div style="background: #fed7aa; border: 1px solid #fdba74; padding: 10px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #ea580c;">${stats.twoStarRate || 0}%</div>
+              <div style="font-size: 11px; color: #6b7280;">2⭐ (${stats.twoStarNum || 0})</div>
+            </div>
+            <div style="background: #fecaca; border: 1px solid #fca5a5; padding: 10px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${stats.oneStarRate || 0}%</div>
+              <div style="font-size: 11px; color: #6b7280;">1⭐ (${stats.oneStarNum || 0})</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Add pagination info
+    const totalReviews = product.reviews.length;
+    const reviewsPerPage = 10;
+    const totalPages = Math.ceil(totalReviews / reviewsPerPage);
+
+    descriptionHtml += `<div style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">Showing all ${totalReviews} reviews</div>`;
+
+    // Add ALL reviews (not just first 10)
+    product.reviews.forEach((review: any, index: number) => {
       const stars = '⭐'.repeat(review.review?.reviewStarts || 0);
       const reviewContent = review.review?.translation?.reviewContent || review.review?.reviewContent || '';
       const buyerName = review.buyer?.buyerTitle || 'Anonymous';
       const buyerCountry = review.buyer?.buyerCountry || '';
       const reviewDate = review.review?.reviewDate || '';
+      const buyerImage = review.buyer?.buyerImage || '';
 
       descriptionHtml += `
         <div style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-            <div>
-              <strong style="font-size: 16px;">${buyerName}</strong>
-              <p style="color: #6b7280; font-size: 13px; margin: 5px 0 0 0;">${buyerCountry} • ${reviewDate}</p>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              ${buyerImage ? `<img src="${buyerImage}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />` : ''}
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <strong style="font-size: 16px;">${buyerName}</strong>
+                  ${buyerCountry ? `<img src="https://flagcdn.com/w20/${buyerCountry.toLowerCase()}.png" style="width: 20px; height: 15px; object-fit: cover; border-radius: 2px;" onerror="this.style.display='none'" />` : ''}
+                </div>
+                <p style="color: #6b7280; font-size: 13px; margin: 5px 0 0 0;">${buyerCountry} • ${reviewDate}</p>
+              </div>
             </div>
             <span style="font-size: 18px;">${stars}</span>
           </div>
@@ -193,6 +243,11 @@ async function publishToShopify(product: any, store: any) {
           descriptionHtml += `<img src="${img}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 4px;" />`;
         });
         descriptionHtml += '</div>';
+      }
+
+      // Add variant info if available
+      if (review.review?.itemSpecInfo) {
+        descriptionHtml += `<p style="color: #6b7280; font-size: 12px; margin-top: 10px;"><strong>Variant:</strong> ${review.review.itemSpecInfo}</p>`;
       }
 
       descriptionHtml += '</div>';
@@ -221,6 +276,44 @@ async function publishToShopify(product: any, store: any) {
     });
   }
 
+  // Build Shopify variants from AliExpress variant data
+  let shopifyVariants: any[] = [];
+  let shopifyOptions: any[] = [];
+
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    // Extract variant types (e.g., Color, Size)
+    product.variants.forEach((variant: any, idx: number) => {
+      if (variant.values && variant.values.length > 0) {
+        shopifyOptions.push({
+          name: variant.name || `Option ${idx + 1}`,
+          values: variant.values.slice(0, 100).map((v: any) => v.name) // Shopify limit is 100 values per option
+        });
+      }
+    });
+
+    // If we have variants, create combinations (simplified - just use first option values)
+    if (shopifyOptions.length > 0) {
+      const firstOption = product.variants[0];
+      if (firstOption.values && firstOption.values.length > 0) {
+        firstOption.values.slice(0, 100).forEach((value: any) => {
+          shopifyVariants.push({
+            option1: value.name,
+            price: product.price.toString(),
+            inventory_management: null,
+          });
+        });
+      }
+    }
+  }
+
+  // If no variants created, add default variant
+  if (shopifyVariants.length === 0) {
+    shopifyVariants.push({
+      price: product.price.toString(),
+      inventory_management: null,
+    });
+  }
+
   const shopifyProduct = {
     product: {
       title: product.title,
@@ -229,12 +322,8 @@ async function publishToShopify(product: any, store: any) {
       product_type: product.productType || "General",
       tags: product.tags?.join(", ") || "",
       images: allImages.length > 0 ? allImages : undefined,
-      variants: [
-        {
-          price: product.price.toString(),
-          inventory_management: null,
-        },
-      ],
+      options: shopifyOptions.length > 0 ? shopifyOptions : undefined,
+      variants: shopifyVariants,
     },
   };
 
