@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClearSeller V2 FRESH",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Automatically detect and import winning dropshipping products from AliExpress, Amazon, and Temu",
   "permissions": [
     "storage",
@@ -28,7 +28,7 @@
         "https://*.aliexpress.com/*",
         "https://*.aliexpress.us/*"
       ],
-      "js": ["config.js", "winning-detector.js", "scrapers/aliexpress.js", "auto-detector.js", "content.js"],
+      "js": ["config.js", "winning-detector.js", "scrapers/aliexpress.js", "auto-detector.js", "bulk-import-ui.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     },
@@ -37,7 +37,7 @@
         "https://*.amazon.com/*",
         "https://*.amazon.co.uk/*"
       ],
-      "js": ["config.js", "winning-detector.js", "scrapers/amazon.js", "auto-detector.js", "content.js"],
+      "js": ["config.js", "winning-detector.js", "scrapers/amazon.js", "auto-detector.js", "bulk-import-ui.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     },
@@ -45,7 +45,7 @@
       "matches": [
         "https://*.temu.com/*"
       ],
-      "js": ["config.js", "winning-detector.js", "scrapers/temu.js", "auto-detector.js", "content.js"],
+      "js": ["config.js", "winning-detector.js", "scrapers/temu.js", "auto-detector.js", "bulk-import-ui.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
