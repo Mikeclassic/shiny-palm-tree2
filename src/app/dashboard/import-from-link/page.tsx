@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Link as LinkIcon, ShoppingBag, Check, AlertCircle, Sparkles, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, Link as LinkIcon, ShoppingBag, Check, AlertCircle, Sparkles, ExternalLink, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 
 interface ProductData {
   itemId: string;
   title: string;
   price: number;
+  regularPrice: number;
+  salePrice: number;
   images: string[];
   variants: any[];
   shipping: {
@@ -16,10 +18,19 @@ interface ProductData {
     company: string;
   };
   description: string;
+  descriptionImages: string[];
   rating: number;
   reviewCount: number;
   reviews: any[];
+  reviewStats: any;
   sourceUrl: string;
+}
+
+interface ConnectedStore {
+  id: string;
+  name: string;
+  platform: string;
+  isActive: boolean;
 }
 
 export default function ImportFromLink() {
@@ -30,6 +41,36 @@ export default function ImportFromLink() {
   const [error, setError] = useState("");
   const [generatingListing, setGeneratingListing] = useState(false);
   const [listingGenerated, setListingGenerated] = useState(false);
+  const [selectedPrice, setSelectedPrice] = useState<'sale' | 'regular'>('sale');
+  const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const [connectedStores, setConnectedStores] = useState<ConnectedStore[]>([]);
+  const [selectedStore, setSelectedStore] = useState<string>("");
+  const [loadingStores, setLoadingStores] = useState(false);
+
+  const reviewsPerPage = 5;
+
+  // Fetch connected stores on mount
+  useEffect(() => {
+    fetchConnectedStores();
+  }, []);
+
+  const fetchConnectedStores = async () => {
+    setLoadingStores(true);
+    try {
+      const response = await fetch('/api/stores/list');
+      const data = await response.json();
+      if (data.stores) {
+        setConnectedStores(data.stores.filter((store: ConnectedStore) => store.isActive));
+        if (data.stores.length > 0) {
+          setSelectedStore(data.stores[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching stores:', err);
+    } finally {
+      setLoadingStores(false);
+    }
+  };
 
   const handleFetchProduct = async () => {
     if (!productUrl.trim()) {
@@ -41,6 +82,7 @@ export default function ImportFromLink() {
     setError("");
     setProductData(null);
     setListingGenerated(false);
+    setCurrentReviewPage(1);
 
     try {
       setFetchProgress("Fetching product details...");
@@ -62,6 +104,13 @@ export default function ImportFromLink() {
       setFetchProgress("Product data fetched successfully!");
       setProductData(data.data);
 
+      // Set default price selection
+      if (data.data.salePrice > 0) {
+        setSelectedPrice('sale');
+      } else {
+        setSelectedPrice('regular');
+      }
+
     } catch (err: any) {
       setError(err.message || 'Failed to fetch product data');
       console.error('Error fetching product:', err);
@@ -71,53 +120,72 @@ export default function ImportFromLink() {
     }
   };
 
-  const handleGenerateListing = async () => {
+  const handlePublishToShopify = async () => {
     if (!productData) return;
+
+    if (!selectedStore) {
+      setError("Please select a store to publish to");
+      return;
+    }
 
     setGeneratingListing(true);
     setError("");
 
     try {
-      setFetchProgress("Generating Shopify listing...");
+      setFetchProgress("Publishing to Shopify...");
 
-      // Call Shopify listing generation API
-      const response = await fetch('/api/shopify/generate-listing', {
+      const priceToUse = selectedPrice === 'sale' ? productData.salePrice : productData.regularPrice;
+
+      // Call Shopify publish API
+      const response = await fetch('/api/stores/publish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          productData,
-          // Calculate suggested price (2.5x markup)
-          suggestedPrice: productData.price * 2.5
+          storeId: selectedStore,
+          productData: {
+            ...productData,
+            price: priceToUse
+          },
+          suggestedPrice: priceToUse * 2.5
         })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate listing');
+        throw new Error(data.error || 'Failed to publish to Shopify');
       }
 
-      setFetchProgress("Listing generated successfully!");
+      setFetchProgress("Product published to Shopify successfully!");
       setListingGenerated(true);
 
       // Show success message
       setTimeout(() => {
         setFetchProgress("");
-      }, 2000);
+      }, 3000);
 
     } catch (err: any) {
-      setError(err.message || 'Failed to generate listing');
-      console.error('Error generating listing:', err);
+      setError(err.message || 'Failed to publish to Shopify');
+      console.error('Error publishing:', err);
     } finally {
       setGeneratingListing(false);
     }
   };
 
+  // Calculate pagination
+  const totalReviewPages = productData ? Math.ceil(productData.reviews.length / reviewsPerPage) : 0;
+  const paginatedReviews = productData
+    ? productData.reviews.slice(
+        (currentReviewPage - 1) * reviewsPerPage,
+        currentReviewPage * reviewsPerPage
+      )
+    : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
@@ -125,7 +193,7 @@ export default function ImportFromLink() {
             Import from AliExpress Link
           </h1>
           <p className="text-slate-600">
-            Paste an AliExpress product URL to fetch details and generate a Shopify listing
+            Paste an AliExpress product URL to fetch details and publish to Shopify
           </p>
         </div>
 
@@ -189,136 +257,361 @@ export default function ImportFromLink() {
 
         {/* Product Data Display */}
         {productData && (
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Product Details</h2>
-              <a
-                href={productData.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
-              >
-                <ExternalLink size={16} />
-                View on AliExpress
-              </a>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Images */}
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Product Images</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {productData.images.slice(0, 4).map((img, idx) => (
-                    <div key={idx} className="relative h-48 bg-slate-100 rounded-lg overflow-hidden">
-                      <Image
-                        src={img}
-                        alt={`Product image ${idx + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-                {productData.images.length > 4 && (
-                  <p className="text-sm text-slate-500 mt-2">
-                    +{productData.images.length - 4} more images
-                  </p>
-                )}
+          <div className="space-y-8">
+            {/* Product Overview */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-900">Product Details</h2>
+                <a
+                  href={productData.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
+                >
+                  <ExternalLink size={16} />
+                  View on AliExpress
+                </a>
               </div>
 
-              {/* Details */}
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Product Images */}
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Title</h3>
-                  <p className="text-slate-700">{productData.title}</p>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Product Images</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {productData.images.slice(0, 4).map((img, idx) => (
+                      <div key={idx} className="relative h-48 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-200">
+                        <Image
+                          src={img}
+                          alt={`Product image ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {productData.images.length > 4 && (
+                    <p className="text-sm text-slate-500 mt-2">
+                      +{productData.images.length - 4} more images
+                    </p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Product Info */}
+                <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Price</h3>
-                    <p className="text-2xl font-bold text-green-600">
-                      ${productData.price.toFixed(2)}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Suggested: ${(productData.price * 2.5).toFixed(2)}
-                    </p>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Title</h3>
+                    <p className="text-slate-700">{productData.title}</p>
                   </div>
 
+                  {/* Price Selection */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Select Price</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {productData.salePrice > 0 && (
+                        <button
+                          onClick={() => setSelectedPrice('sale')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            selectedPrice === 'sale'
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-slate-200 hover:border-green-300'
+                          }`}
+                        >
+                          <div className="text-xs text-slate-600 mb-1">Sale Price</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            ${productData.salePrice.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Suggested: ${(productData.salePrice * 2.5).toFixed(2)}
+                          </div>
+                        </button>
+                      )}
+                      {productData.regularPrice > 0 && (
+                        <button
+                          onClick={() => setSelectedPrice('regular')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            selectedPrice === 'regular'
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-slate-200 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="text-xs text-slate-600 mb-1">Regular Price</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            ${productData.regularPrice.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Suggested: ${(productData.regularPrice * 2.5).toFixed(2)}
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rating */}
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-2">Rating</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-yellow-600">
-                        {productData.rating.toFixed(1)}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <Star className="fill-yellow-400 text-yellow-400" size={20} />
+                        <span className="text-2xl font-bold text-yellow-600">
+                          {productData.rating.toFixed(1)}
+                        </span>
+                        <span className="text-slate-500">/ 5.0</span>
+                      </div>
+                      <span className="text-sm text-slate-500">
+                        ({productData.reviewCount.toLocaleString()} reviews)
                       </span>
-                      <span className="text-slate-500">/ 5.0</span>
                     </div>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {productData.reviewCount.toLocaleString()} reviews
-                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900 mb-2">Shipping</h3>
-                  <div className="bg-slate-50 p-4 rounded-lg space-y-2">
-                    <p className="text-sm text-slate-700">
-                      <span className="font-medium">Time:</span> {productData.shipping.time} days
-                    </p>
-                    <p className="text-sm text-slate-700">
-                      <span className="font-medium">Cost:</span> ${productData.shipping.cost.toFixed(2)}
-                    </p>
-                    <p className="text-sm text-slate-700">
-                      <span className="font-medium">Company:</span> {productData.shipping.company}
-                    </p>
-                  </div>
-                </div>
-
-                {productData.variants && productData.variants.length > 0 && (
+                  {/* Shipping */}
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Variants</h3>
-                    <p className="text-sm text-slate-600">
-                      {productData.variants.length} variant types available
-                    </p>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Shipping</h3>
+                    <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+                      <p className="text-sm text-slate-700">
+                        <span className="font-medium">Time:</span> {productData.shipping.time} days
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        <span className="font-medium">Cost:</span> ${productData.shipping.cost.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        <span className="font-medium">Company:</span> {productData.shipping.company}
+                      </p>
+                    </div>
                   </div>
-                )}
+
+                  {/* Variants */}
+                  {productData.variants && productData.variants.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 mb-2">Variants</h3>
+                      <p className="text-sm text-slate-600">
+                        {productData.variants.length} variant types available
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Description */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Description</h3>
-              <div className="bg-slate-50 p-6 rounded-lg">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Description</h3>
+              <div className="bg-slate-50 p-6 rounded-lg mb-6">
                 <p className="text-slate-700 whitespace-pre-wrap">
-                  {productData.description.substring(0, 500)}
-                  {productData.description.length > 500 && '...'}
+                  {productData.description}
                 </p>
               </div>
+
+              {/* Description Images */}
+              {productData.descriptionImages && productData.descriptionImages.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Product Detail Images</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {productData.descriptionImages.map((img, idx) => (
+                      <div key={idx} className="relative h-96 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-200">
+                        <Image
+                          src={img}
+                          alt={`Description image ${idx + 1}`}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Generate Listing Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleGenerateListing}
-                disabled={generatingListing || listingGenerated}
-                className="px-12 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl hover:shadow-2xl flex items-center gap-3 text-lg"
-              >
-                {generatingListing ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    Generating Shopify Listing...
-                  </>
-                ) : listingGenerated ? (
-                  <>
-                    <Check size={24} />
-                    Listing Generated Successfully!
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag size={24} />
-                    Generate Shopify Listing
-                  </>
+            {/* Reviews Section */}
+            {productData.reviews && productData.reviews.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <h3 className="text-2xl font-bold text-slate-900 mb-6">Customer Reviews</h3>
+
+                {/* Review Stats */}
+                {productData.reviewStats && (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="text-2xl font-bold text-green-600">
+                        {productData.reviewStats.fiveStarRate}%
+                      </div>
+                      <div className="text-xs text-slate-600">5 Stars ({productData.reviewStats.fiveStarNum})</div>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {productData.reviewStats.fourStarRate}%
+                      </div>
+                      <div className="text-xs text-slate-600">4 Stars ({productData.reviewStats.fourStarNum})</div>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {productData.reviewStats.threeStarRate}%
+                      </div>
+                      <div className="text-xs text-slate-600">3 Stars ({productData.reviewStats.threeStarNum})</div>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {productData.reviewStats.twoStarRate}%
+                      </div>
+                      <div className="text-xs text-slate-600">2 Stars ({productData.reviewStats.twoStarNum})</div>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                      <div className="text-2xl font-bold text-red-600">
+                        {productData.reviewStats.oneStarRate}%
+                      </div>
+                      <div className="text-xs text-slate-600">1 Star ({productData.reviewStats.oneStarNum})</div>
+                    </div>
+                  </div>
                 )}
-              </button>
+
+                {/* Review List */}
+                <div className="space-y-4">
+                  {paginatedReviews.map((review: any, idx: number) => (
+                    <div key={idx} className="border-2 border-slate-200 rounded-lg p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {review.buyer?.buyerImage && (
+                            <img
+                              src={review.buyer.buyerImage}
+                              alt="Buyer"
+                              className="w-10 h-10 rounded-full"
+                            />
+                          )}
+                          <div>
+                            <div className="font-semibold text-slate-900">
+                              {review.buyer?.buyerTitle || 'Anonymous'}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {review.buyer?.buyerCountry} • {review.review?.reviewDate}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={16}
+                              className={
+                                i < review.review?.reviewStarts
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-slate-300'
+                              }
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-slate-700 mb-3">
+                        {review.review?.translation?.reviewContent || review.review?.reviewContent}
+                      </p>
+
+                      {review.review?.reviewImages && review.review.reviewImages.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mt-3">
+                          {review.review.reviewImages.map((img: string, imgIdx: number) => (
+                            <div key={imgIdx} className="relative h-24 bg-slate-100 rounded-lg overflow-hidden">
+                              <Image
+                                src={img}
+                                alt={`Review image ${imgIdx + 1}`}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {review.review?.itemSpecInfo && (
+                        <div className="mt-3 text-xs text-slate-500">
+                          <span className="font-medium">Variant:</span> {review.review.itemSpecInfo}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalReviewPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <button
+                      onClick={() => setCurrentReviewPage(p => Math.max(1, p - 1))}
+                      disabled={currentReviewPage === 1}
+                      className="p-2 rounded-lg border-2 border-slate-200 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <span className="text-sm text-slate-600">
+                      Page {currentReviewPage} of {totalReviewPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentReviewPage(p => Math.min(totalReviewPages, p + 1))}
+                      disabled={currentReviewPage === totalReviewPages}
+                      className="p-2 rounded-lg border-2 border-slate-200 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Publish Section */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <h3 className="text-2xl font-bold text-slate-900 mb-6">Publish to Shopify</h3>
+
+              {/* Store Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-700 mb-3">
+                  Select Store
+                </label>
+                {loadingStores ? (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Loader2 className="animate-spin" size={16} />
+                    Loading stores...
+                  </div>
+                ) : connectedStores.length > 0 ? (
+                  <select
+                    value={selectedStore}
+                    onChange={(e) => setSelectedStore(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  >
+                    {connectedStores.map((store) => (
+                      <option key={store.id} value={store.id}>
+                        {store.name} ({store.platform})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-900">
+                      No stores connected. Please connect a Shopify store first.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Publish Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handlePublishToShopify}
+                  disabled={generatingListing || listingGenerated || !selectedStore}
+                  className="px-12 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl hover:shadow-2xl flex items-center gap-3 text-lg"
+                >
+                  {generatingListing ? (
+                    <>
+                      <Loader2 className="animate-spin" size={24} />
+                      Publishing to Shopify...
+                    </>
+                  ) : listingGenerated ? (
+                    <>
+                      <Check size={24} />
+                      Published Successfully!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag size={24} />
+                      Publish to Shopify
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

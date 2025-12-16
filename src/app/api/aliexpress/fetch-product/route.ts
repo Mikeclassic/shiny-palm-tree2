@@ -8,6 +8,8 @@ const RAPIDAPI_HOST = 'aliexpress-datahub.p.rapidapi.com';
 interface ProductDetails {
   title: string;
   price: number;
+  regularPrice: number;
+  salePrice: number;
   images: string[];
   variants: any[];
   shipping: any;
@@ -15,12 +17,14 @@ interface ProductDetails {
 
 interface ProductDescription {
   description: string;
+  descriptionImages: string[];
 }
 
 interface ProductReviews {
   rating: number;
   reviewCount: number;
   reviews: any[];
+  reviewStats: any;
 }
 
 export async function POST(req: NextRequest) {
@@ -58,13 +62,17 @@ export async function POST(req: NextRequest) {
       itemId,
       title: productDetails.title,
       price: productDetails.price,
+      regularPrice: productDetails.regularPrice,
+      salePrice: productDetails.salePrice,
       images: productDetails.images,
       variants: productDetails.variants,
       shipping: productDetails.shipping,
       description: productDescription.description,
+      descriptionImages: productDescription.descriptionImages,
       rating: productReviews.rating,
       reviewCount: productReviews.reviewCount,
       reviews: productReviews.reviews,
+      reviewStats: productReviews.reviewStats,
       sourceUrl: productUrl
     };
 
@@ -121,15 +129,21 @@ async function fetchProductDetails(itemId: string): Promise<ProductDetails> {
   const primaryShipping = shippingList[0] || {};
 
   // Handle price - can be a range like "25.4 - 44.47"
-  let price = 0;
+  let regularPrice = 0;
+  let salePrice = 0;
+
+  if (priceInfo.price) {
+    const priceStr = String(priceInfo.price);
+    regularPrice = parseFloat(priceStr.split('-')[0].trim());
+  }
+
   if (priceInfo.promotionPrice) {
     const priceStr = String(priceInfo.promotionPrice);
-    // If it's a range, take the first (lowest) price
-    price = parseFloat(priceStr.split('-')[0].trim());
-  } else if (priceInfo.price) {
-    const priceStr = String(priceInfo.price);
-    price = parseFloat(priceStr.split('-')[0].trim());
+    salePrice = parseFloat(priceStr.split('-')[0].trim());
   }
+
+  // Use sale price if available, otherwise regular price
+  const price = salePrice || regularPrice;
 
   // Handle images - add https: prefix to protocol-relative URLs
   const images = (item.images || []).map((img: string) => {
@@ -139,6 +153,8 @@ async function fetchProductDetails(itemId: string): Promise<ProductDetails> {
   return {
     title: item.title || 'Unknown Product',
     price: price || 0,
+    regularPrice: regularPrice || 0,
+    salePrice: salePrice || 0,
     images: images,
     variants: item.sku?.props || [],
     shipping: {
@@ -177,10 +193,18 @@ async function fetchProductDescription(itemId: string): Promise<ProductDescripti
 
   // Description can be in text array or images array
   let description = '';
+  let descriptionImages: string[] = [];
 
   if (descriptionData.text && Array.isArray(descriptionData.text)) {
     // Join all text elements with line breaks
     description = descriptionData.text.join('\n').trim();
+  }
+
+  // Extract description images and add https: prefix
+  if (descriptionData.images && Array.isArray(descriptionData.images)) {
+    descriptionImages = descriptionData.images.map((img: string) => {
+      return img.startsWith('//') ? `https:${img}` : img;
+    });
   }
 
   // If still no description, try properties
@@ -192,7 +216,8 @@ async function fetchProductDescription(itemId: string): Promise<ProductDescripti
   }
 
   return {
-    description: description || 'No description available'
+    description: description || 'No description available',
+    descriptionImages: descriptionImages
   };
 }
 
@@ -216,7 +241,8 @@ async function fetchProductReviews(itemId: string): Promise<ProductReviews> {
     return {
       rating: 0,
       reviewCount: 0,
-      reviews: []
+      reviews: [],
+      reviewStats: {}
     };
   }
 
@@ -231,6 +257,7 @@ async function fetchProductReviews(itemId: string): Promise<ProductReviews> {
     // Note: API has typo "evarageStar" instead of "averageStar"
     rating: parseFloat(reviewStats.evarageStar || reviewStats.averageStar) || 0,
     reviewCount: parseInt(base.totalResults) || 0,
-    reviews: result.resultList || []
+    reviews: result.resultList || [],
+    reviewStats: reviewStats
   };
 }

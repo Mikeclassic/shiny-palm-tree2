@@ -5,8 +5,10 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 
 const publishSchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().min(1).optional(),
   storeId: z.string().min(1),
+  productData: z.any().optional(),
+  suggestedPrice: z.number().optional(),
 });
 
 export async function POST(req: Request) {
@@ -26,15 +28,46 @@ export async function POST(req: Request) {
       );
     }
 
-    const { productId, storeId } = validationResult.data;
+    const { productId, storeId, productData, suggestedPrice } = validationResult.data;
 
-    // Get product
-    const product = await db.product.findUnique({
-      where: { id: productId },
-    });
+    let product: any;
 
-    if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    // If productData is provided (from RapidAPI import), create product first
+    if (productData) {
+      const priceToUse = suggestedPrice || productData.price;
+
+      // Create product in database
+      product = await db.product.create({
+        data: {
+          title: productData.title,
+          price: priceToUse,
+          imageUrl: productData.images[0] || '',
+          sourceUrl: productData.sourceUrl,
+          originalDesc: productData.description,
+          supplierUrl: productData.sourceUrl,
+          supplierPrice: productData.price,
+          supplierRating: productData.rating,
+          supplierReviews: productData.reviewCount,
+          shippingTime: productData.shipping?.time || 'Unknown',
+          importSource: 'aliexpress-rapidapi',
+          lastSourced: new Date(),
+          productType: 'Imported',
+          tags: [],
+          vendor: 'AliExpress',
+          publishedAt: new Date(), // Mark as published
+        }
+      });
+    } else if (productId) {
+      // Get existing product
+      product = await db.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      }
+    } else {
+      return NextResponse.json({ error: "Either productId or productData is required" }, { status: 400 });
     }
 
     // Get store
@@ -50,18 +83,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Store not found or inactive" }, { status: 404 });
     }
 
-    // Check if already published
-    const existingPublish = await db.publishedProduct.findUnique({
-      where: {
-        productId_storeId: {
-          productId,
-          storeId,
+    // Check if already published (only if product exists)
+    if (product.id) {
+      const existingPublish = await db.publishedProduct.findUnique({
+        where: {
+          productId_storeId: {
+            productId: product.id,
+            storeId,
+          },
         },
-      },
-    });
+      });
 
-    if (existingPublish) {
-      return NextResponse.json({ error: "Product already published to this store" }, { status: 400 });
+      if (existingPublish) {
+        return NextResponse.json({ error: "Product already published to this store" }, { status: 400 });
+      }
     }
 
     // Publish based on platform
@@ -96,30 +131,39 @@ export async function POST(req: Request) {
 }
 
 async function publishToShopify(product: any, store: any) {
-  // Use generated description if available (already HTML formatted from AI)
-  // Otherwise convert plain text to HTML
+  // Build description with text + description images
+  let descriptionHtml = '';
+
+  // Add main description text
   const description = product.generatedDesc || product.originalDesc || "";
-  const formattedDescription = description.includes('<')
-    ? description // Already HTML formatted
-    : description // Convert plain text to HTML
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 0)
-        .map((line: string) => `<p>${line}</p>`)
-        .join('');
+  if (description) {
+    const textHtml = description.includes('<')
+      ? description
+      : description
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => line.length > 0)
+          .map((line: string) => `<p>${line}</p>`)
+          .join('');
+    descriptionHtml += textHtml;
+  }
+
+  // Build complete product images array (main images + description images)
+  const allImages: any[] = [];
+
+  // Add main product image
+  if (product.generatedImage || product.imageUrl) {
+    allImages.push({ src: product.generatedImage || product.imageUrl });
+  }
 
   const shopifyProduct = {
     product: {
       title: product.title,
-      body_html: formattedDescription,
+      body_html: descriptionHtml,
       vendor: product.vendor || "ClearSeller",
       product_type: product.productType || "General",
       tags: product.tags?.join(", ") || "",
-      images: [
-        {
-          src: product.generatedImage || product.imageUrl,
-        },
-      ],
+      images: allImages.length > 0 ? allImages : undefined,
       variants: [
         {
           price: product.price.toString(),
