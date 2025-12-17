@@ -202,6 +202,36 @@ async function publishToShopify(product: any, store: any) {
       `;
     }
 
+    // Collect all review images from all reviews
+    const allReviewImages: string[] = [];
+    product.reviews.forEach((review: any) => {
+      if (review.review?.reviewImages && Array.isArray(review.review.reviewImages)) {
+        allReviewImages.push(...review.review.reviewImages);
+      }
+    });
+
+    // Add featured review images section if there are images
+    if (allReviewImages.length > 0) {
+      descriptionHtml += `
+        <div style="margin-bottom: 30px;">
+          <h4 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #374151;">Customer Photos</h4>
+          <div style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px;">
+      `;
+
+      allReviewImages.slice(0, 30).forEach((img: string) => {
+        descriptionHtml += `
+          <img src="${img}"
+               style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #e5e7eb; flex-shrink: 0;" />
+        `;
+      });
+
+      descriptionHtml += `
+          </div>
+          ${allReviewImages.length > 30 ? `<p style="color: #6b7280; font-size: 13px; margin-top: 10px;">+${allReviewImages.length - 30} more customer photos</p>` : ''}
+        </div>
+      `;
+    }
+
     // Add pagination info
     const totalReviews = product.reviews.length;
     const reviewsPerPage = 10;
@@ -213,7 +243,11 @@ async function publishToShopify(product: any, store: any) {
     product.reviews.forEach((review: any, index: number) => {
       const stars = '⭐'.repeat(review.review?.reviewStarts || 0);
       const reviewContent = review.review?.translation?.reviewContent || review.review?.reviewContent || '';
-      const buyerName = review.buyer?.buyerTitle || 'Anonymous';
+      let buyerName = review.buyer?.buyerTitle || 'Anonymous';
+      // Replace "AliExpress Shopper" with "Anonymous Shopper"
+      if (buyerName.toLowerCase().includes('aliexpress shopper')) {
+        buyerName = 'Anonymous Shopper';
+      }
       const buyerCountry = review.buyer?.buyerCountry || '';
       const reviewDate = review.review?.reviewDate || '';
       const buyerImage = review.buyer?.buyerImage || '';
@@ -281,28 +315,54 @@ async function publishToShopify(product: any, store: any) {
   let shopifyOptions: any[] = [];
 
   if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-    // Extract variant types (e.g., Color, Size)
-    product.variants.forEach((variant: any, idx: number) => {
-      if (variant.values && variant.values.length > 0) {
-        shopifyOptions.push({
-          name: variant.name || `Option ${idx + 1}`,
-          values: variant.values.slice(0, 100).map((v: any) => v.name) // Shopify limit is 100 values per option
-        });
-      }
+    // Extract variant types (e.g., Color, Size) - limit to 3 options (Shopify max)
+    const validVariants = product.variants.filter((v: any) => v.values && v.values.length > 0).slice(0, 3);
+
+    validVariants.forEach((variant: any, idx: number) => {
+      shopifyOptions.push({
+        name: variant.name || `Option ${idx + 1}`,
+        values: variant.values.slice(0, 100).map((v: any) => v.name) // Shopify limit is 100 values per option
+      });
     });
 
-    // If we have variants, create combinations (simplified - just use first option values)
+    // Generate all variant combinations
     if (shopifyOptions.length > 0) {
-      const firstOption = product.variants[0];
-      if (firstOption.values && firstOption.values.length > 0) {
-        firstOption.values.slice(0, 100).forEach((value: any) => {
-          shopifyVariants.push({
-            option1: value.name,
-            price: product.price.toString(),
-            inventory_management: null,
-          });
+      const generateCombinations = (options: any[], index: number = 0, current: any = {}): any[] => {
+        if (index === options.length) {
+          return [current];
+        }
+
+        const results: any[] = [];
+        const optionIndex = index + 1; // option1, option2, option3
+
+        validVariants[index].values.slice(0, 100).forEach((value: any) => {
+          const combination = {
+            ...current,
+            [`option${optionIndex}`]: value.name,
+          };
+
+          // Add image if this is the first option and it has an image
+          if (index === 0 && value.image) {
+            const imageUrl = value.image.startsWith('//') ? `https:${value.image}` : value.image;
+            combination.image_src = imageUrl;
+          }
+
+          results.push(...generateCombinations(options, index + 1, combination));
         });
-      }
+
+        return results;
+      };
+
+      shopifyVariants = generateCombinations(shopifyOptions).map((combo) => ({
+        ...combo,
+        price: product.price.toString(),
+        inventory_management: null,
+        inventory_quantity: 100,
+        inventory_policy: 'deny',
+      }));
+
+      // Limit to 100 variants (Shopify max)
+      shopifyVariants = shopifyVariants.slice(0, 100);
     }
   }
 
@@ -311,6 +371,8 @@ async function publishToShopify(product: any, store: any) {
     shopifyVariants.push({
       price: product.price.toString(),
       inventory_management: null,
+      inventory_quantity: 100,
+      inventory_policy: 'deny',
     });
   }
 

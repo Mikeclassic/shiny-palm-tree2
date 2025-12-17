@@ -47,7 +47,7 @@ export default function ImportFromLink() {
   const [selectedStore, setSelectedStore] = useState<string>("");
   const [loadingStores, setLoadingStores] = useState(false);
 
-  const reviewsPerPage = 5;
+  const reviewsPerPage = 10;
 
   // Fetch connected stores on mount
   useEffect(() => {
@@ -183,25 +183,25 @@ export default function ImportFromLink() {
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
-            <ShoppingBag className="text-blue-600" size={40} />
-            Import from AliExpress Link
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-4xl font-bold text-slate-900 mb-2 flex items-center gap-2 md:gap-3">
+            <ShoppingBag className="text-blue-600" size={32} />
+            <span className="leading-tight">Import from AliExpress Link</span>
           </h1>
-          <p className="text-slate-600">
+          <p className="text-sm md:text-base text-slate-600">
             Paste an AliExpress product URL to fetch details and publish to Shopify
           </p>
         </div>
 
         {/* Input Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+        <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8 mb-8">
           <label className="block text-sm font-semibold text-slate-700 mb-3">
             AliExpress Product URL
           </label>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input
@@ -217,7 +217,7 @@ export default function ImportFromLink() {
             <button
               onClick={handleFetchProduct}
               disabled={loading || !productUrl.trim()}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               {loading ? (
                 <>
@@ -258,14 +258,14 @@ export default function ImportFromLink() {
         {productData && (
           <div className="space-y-8">
             {/* Product Overview */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">Product Details</h2>
+            <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+                <h2 className="text-xl md:text-2xl font-bold text-slate-900">Product Details</h2>
                 <a
                   href={productData.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
+                  className="text-blue-600 hover:text-blue-700 flex items-center gap-2 text-sm"
                 >
                   <ExternalLink size={16} />
                   View on AliExpress
@@ -305,7 +305,7 @@ export default function ImportFromLink() {
                   {/* Price Selection */}
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">Select Price</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {productData.salePrice > 0 && (
                         <button
                           onClick={() => setSelectedPrice('sale')}
@@ -316,7 +316,7 @@ export default function ImportFromLink() {
                           }`}
                         >
                           <div className="text-xs text-slate-600 mb-1">Sale Price</div>
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-xl md:text-2xl font-bold text-green-600">
                             ${productData.salePrice.toFixed(2)}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">
@@ -334,7 +334,7 @@ export default function ImportFromLink() {
                           }`}
                         >
                           <div className="text-xs text-slate-600 mb-1">Regular Price</div>
-                          <div className="text-2xl font-bold text-blue-600">
+                          <div className="text-xl md:text-2xl font-bold text-blue-600">
                             ${productData.regularPrice.toFixed(2)}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">
@@ -389,9 +389,9 @@ export default function ImportFromLink() {
                             {variant.values && variant.values.length > 0 && (
                               <div className="flex flex-wrap gap-2">
                                 {variant.values.slice(0, 5).map((value: any, vIdx: number) => (
-                                  <div key={vIdx} className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-md border border-slate-200">
+                                  <div key={vIdx} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-md border border-slate-200">
                                     {value.image && (
-                                      <div className="relative w-6 h-6 rounded">
+                                      <div className="relative w-12 h-12 rounded">
                                         <Image
                                           src={value.image.startsWith('//') ? `https:${value.image}` : value.image}
                                           alt={value.name}
@@ -400,7 +400,7 @@ export default function ImportFromLink() {
                                         />
                                       </div>
                                     )}
-                                    <span className="text-xs text-slate-700">{value.name}</span>
+                                    <span className="text-sm text-slate-700">{value.name}</span>
                                   </div>
                                 ))}
                                 {variant.values.length > 5 && (
@@ -420,10 +420,10 @@ export default function ImportFromLink() {
             </div>
 
             {/* Description */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Description</h3>
-              <div className="bg-slate-50 p-6 rounded-lg mb-6">
-                <p className="text-slate-700 whitespace-pre-wrap">
+            <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-4">Description</h3>
+              <div className="bg-slate-50 p-4 md:p-6 rounded-lg mb-6">
+                <p className="text-sm md:text-base text-slate-700 whitespace-pre-wrap">
                   {productData.description}
                 </p>
               </div>
@@ -431,7 +431,7 @@ export default function ImportFromLink() {
               {/* Description Images */}
               {productData.descriptionImages && productData.descriptionImages.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Product Detail Images</h4>
+                  <h4 className="text-base md:text-lg font-semibold text-slate-900 mb-4">Product Detail Images</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {productData.descriptionImages.map((img, idx) => (
                       <div key={idx} className="relative h-96 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-200">
@@ -450,8 +450,8 @@ export default function ImportFromLink() {
 
             {/* Reviews Section */}
             {productData.reviews && productData.reviews.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-xl p-8">
-                <h3 className="text-2xl font-bold text-slate-900 mb-6">Customer Reviews</h3>
+              <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
+                <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-6">Customer Reviews</h3>
 
                 {/* Review Stats */}
                 {productData.reviewStats && (
@@ -489,6 +489,41 @@ export default function ImportFromLink() {
                   </div>
                 )}
 
+                {/* Featured Review Images */}
+                {(() => {
+                  const allReviewImages: string[] = [];
+                  productData.reviews.forEach((review: any) => {
+                    if (review.review?.reviewImages && Array.isArray(review.review.reviewImages)) {
+                      allReviewImages.push(...review.review.reviewImages);
+                    }
+                  });
+
+                  if (allReviewImages.length > 0) {
+                    return (
+                      <div className="mb-8">
+                        <h4 className="text-lg font-bold text-slate-900 mb-4">Customer Photos</h4>
+                        <div className="flex gap-3 overflow-x-auto pb-3">
+                          {allReviewImages.slice(0, 30).map((img, imgIdx) => (
+                            <div key={imgIdx} className="flex-shrink-0">
+                              <img
+                                src={img.startsWith('//') ? `https:${img}` : img}
+                                alt={`Customer photo ${imgIdx + 1}`}
+                                className="w-36 h-36 object-cover rounded-lg border-2 border-slate-200"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        {allReviewImages.length > 30 && (
+                          <p className="text-sm text-slate-500 mt-2">
+                            +{allReviewImages.length - 30} more customer photos
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {/* Review List */}
                 <div className="space-y-4">
                   {paginatedReviews.map((review: any, idx: number) => (
@@ -505,7 +540,10 @@ export default function ImportFromLink() {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-slate-900">
-                                {review.buyer?.buyerTitle || 'Anonymous'}
+                                {(() => {
+                                  const name = review.buyer?.buyerTitle || 'Anonymous';
+                                  return name.toLowerCase().includes('aliexpress shopper') ? 'Anonymous Shopper' : name;
+                                })()}
                               </span>
                               {review.buyer?.buyerCountry && (
                                 <img
@@ -545,12 +583,11 @@ export default function ImportFromLink() {
                       {review.review?.reviewImages && review.review.reviewImages.length > 0 && (
                         <div className="grid grid-cols-4 gap-2 mt-3">
                           {review.review.reviewImages.map((img: string, imgIdx: number) => (
-                            <div key={imgIdx} className="relative h-24 bg-slate-100 rounded-lg overflow-hidden">
-                              <Image
-                                src={img}
+                            <div key={imgIdx} className="h-24 bg-slate-100 rounded-lg overflow-hidden">
+                              <img
+                                src={img.startsWith('//') ? `https:${img}` : img}
                                 alt={`Review image ${imgIdx + 1}`}
-                                fill
-                                className="object-cover"
+                                className="w-full h-full object-cover"
                               />
                             </div>
                           ))}
@@ -568,32 +605,68 @@ export default function ImportFromLink() {
 
                 {/* Pagination */}
                 {totalReviewPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-6">
-                    <button
-                      onClick={() => setCurrentReviewPage(p => Math.max(1, p - 1))}
-                      disabled={currentReviewPage === 1}
-                      className="p-2 rounded-lg border-2 border-slate-200 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <span className="text-sm text-slate-600">
-                      Page {currentReviewPage} of {totalReviewPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentReviewPage(p => Math.min(totalReviewPages, p + 1))}
-                      disabled={currentReviewPage === totalReviewPages}
-                      className="p-2 rounded-lg border-2 border-slate-200 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
+                  <div className="flex flex-col items-center gap-4 mt-6">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        onClick={() => setCurrentReviewPage(p => Math.max(1, p - 1))}
+                        disabled={currentReviewPage === 1}
+                        className="px-3 md:px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-xs md:text-sm"
+                      >
+                        Previous
+                      </button>
+
+                      {/* Page numbers */}
+                      <div className="flex items-center gap-1 md:gap-2">
+                        {[...Array(totalReviewPages)].map((_, idx) => {
+                          const pageNum = idx + 1;
+                          // Show first page, last page, current page, and pages around current
+                          if (
+                            pageNum === 1 ||
+                            pageNum === totalReviewPages ||
+                            (pageNum >= currentReviewPage - 1 && pageNum <= currentReviewPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentReviewPage(pageNum)}
+                                className={`w-8 h-8 md:w-10 md:h-10 rounded-lg font-medium text-xs md:text-sm transition ${
+                                  currentReviewPage === pageNum
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          } else if (
+                            pageNum === currentReviewPage - 2 ||
+                            pageNum === currentReviewPage + 2
+                          ) {
+                            return <span key={pageNum} className="text-slate-400 hidden sm:inline">...</span>;
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => setCurrentReviewPage(p => Math.min(totalReviewPages, p + 1))}
+                        disabled={currentReviewPage === totalReviewPages}
+                        className="px-3 md:px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-xs md:text-sm"
+                      >
+                        Next
+                      </button>
+                    </div>
+                    <p className="text-xs md:text-sm text-slate-500 text-center px-4">
+                      Showing {(currentReviewPage - 1) * reviewsPerPage + 1}-{Math.min(currentReviewPage * reviewsPerPage, productData.reviews.length)} of {productData.reviews.length} reviews
+                    </p>
                   </div>
                 )}
               </div>
             )}
 
             {/* Publish Section */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-6">Publish to Shopify</h3>
+            <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-6">Publish to Shopify</h3>
 
               {/* Store Selection */}
               <div className="mb-6">
