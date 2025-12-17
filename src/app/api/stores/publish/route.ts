@@ -64,6 +64,11 @@ export async function POST(req: Request) {
       product.reviewStats = productData.reviewStats || {};
       product.images = productData.images || [];
       product.variants = productData.variants || [];
+
+      console.log('[Publish] Product data received from frontend:');
+      console.log('  - Images count:', product.images.length);
+      console.log('  - Variants count:', product.variants.length);
+      console.log('  - Variant structure:', product.variants.length > 0 ? JSON.stringify(product.variants[0], null, 2) : 'none');
     } else if (productId) {
       // Get existing product
       product = await db.product.findUnique({
@@ -141,6 +146,24 @@ async function publishToShopify(product: any, store: any) {
   // Build description with text + description images + reviews
   let descriptionHtml = '';
 
+  // Add average rating at the very top if reviews available
+  if (product.reviews && Array.isArray(product.reviews) && product.reviews.length > 0) {
+    const averageRating = product.reviewStats?.evarageStar || product.reviewStats?.averageStar || 0;
+    const totalRatings = product.reviews.length;
+    const stars = '⭐'.repeat(Math.round(averageRating));
+
+    descriptionHtml += `
+      <div style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center;">
+        <div style="color: white; font-size: 14px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Customer Rating</div>
+        <div>
+          <span style="font-size: 36px; font-weight: bold; color: #fbbf24;">${averageRating}</span>
+          <span style="font-size: 28px; margin: 0 12px;">${stars}</span>
+        </div>
+        <div style="color: #e0e7ff; font-size: 16px; margin-top: 8px;">${totalRatings.toLocaleString()} ratings</div>
+      </div>
+    `;
+  }
+
   // Add main description text
   const description = product.generatedDesc || product.originalDesc || "";
   if (description) {
@@ -157,10 +180,37 @@ async function publishToShopify(product: any, store: any) {
 
   // Add description images if available (stored in product metadata)
   if (product.descriptionImages && Array.isArray(product.descriptionImages)) {
+    const totalImages = product.descriptionImages.length;
+    const initialImages = product.descriptionImages.slice(0, 4);
+    const remainingImages = product.descriptionImages.slice(4);
+
     descriptionHtml += '<div style="margin-top: 30px;"><h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px;">Product Details</h3>';
-    product.descriptionImages.forEach((img: string) => {
+
+    // Show first 4 images
+    initialImages.forEach((img: string) => {
       descriptionHtml += `<img src="${img}" style="width: 100%; max-width: 800px; margin-bottom: 15px;" />`;
     });
+
+    // If more than 4 images, add collapsible section
+    if (remainingImages.length > 0) {
+      descriptionHtml += `
+        <details style="margin-top: 20px;">
+          <summary style="cursor: pointer; padding: 12px 20px; background: #3b82f6; color: white; border-radius: 8px; font-weight: bold; text-align: center; user-select: none;">
+            View All ${totalImages} Images
+          </summary>
+          <div style="margin-top: 15px;">
+      `;
+
+      remainingImages.forEach((img: string) => {
+        descriptionHtml += `<img src="${img}" style="width: 100%; max-width: 800px; margin-bottom: 15px;" />`;
+      });
+
+      descriptionHtml += `
+          </div>
+        </details>
+      `;
+    }
+
     descriptionHtml += '</div>';
   }
 
@@ -206,7 +256,8 @@ async function publishToShopify(product: any, store: any) {
 
     // Filter reviews to only show 3+ stars
     const filteredReviews = product.reviews.filter((review: any) => {
-      const stars = review.review?.reviewStarts || 0;
+      // Check for typo variations in API field name
+      const stars = review.review?.reviewStarts || review.review?.reviewStars || review.review?.rating || 0;
       return stars >= 3;
     });
 
@@ -240,23 +291,12 @@ async function publishToShopify(product: any, store: any) {
       `;
     }
 
-    // Add average rating display
-    const averageRating = product.reviewStats?.evarageStar || product.reviewStats?.averageStar || 0;
-    const totalRatings = product.reviews.length;
-    const stars = '⭐'.repeat(Math.round(averageRating));
+    // Add filtered reviews (3+ stars only) with pagination
+    const reviewsPerPage = 10;
+    const totalPages = Math.ceil(filteredReviews.length / reviewsPerPage);
 
-    descriptionHtml += `
-      <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; text-align: center;">
-        <span style="font-size: 20px; font-weight: bold; color: #374151;">${averageRating}</span>
-        <span style="font-size: 18px; margin: 0 8px;">${stars}</span>
-        <span style="font-size: 16px; color: #6b7280;">${totalRatings} ratings</span>
-      </div>
-    `;
-
-    descriptionHtml += `<div style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">Showing ${filteredReviews.length} reviews (3+ stars)</div>`;
-
-    // Add filtered reviews (3+ stars only)
-    filteredReviews.forEach((review: any, index: number) => {
+    // Helper function to render a review
+    const renderReview = (review: any) => {
       const stars = '⭐'.repeat(review.review?.reviewStarts || 0);
       const reviewContent = review.review?.translation?.reviewContent || review.review?.reviewContent || '';
       let buyerName = review.buyer?.buyerTitle || 'Anonymous';
@@ -268,7 +308,7 @@ async function publishToShopify(product: any, store: any) {
       const reviewDate = review.review?.reviewDate || '';
       const buyerImage = review.buyer?.buyerImage || '';
 
-      descriptionHtml += `
+      let html = `
         <div style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
             <div style="display: flex; gap: 12px; align-items: center;">
@@ -288,20 +328,51 @@ async function publishToShopify(product: any, store: any) {
 
       // Add review images if available
       if (review.review?.reviewImages && review.review.reviewImages.length > 0) {
-        descriptionHtml += '<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">';
+        html += '<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">';
         review.review.reviewImages.forEach((img: string) => {
-          descriptionHtml += `<img src="${img}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 4px;" />`;
+          html += `<img src="${img}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 4px;" />`;
         });
-        descriptionHtml += '</div>';
+        html += '</div>';
       }
 
       // Add variant info if available
       if (review.review?.itemSpecInfo) {
-        descriptionHtml += `<p style="color: #6b7280; font-size: 12px; margin-top: 10px;"><strong>Variant:</strong> ${review.review.itemSpecInfo}</p>`;
+        html += `<p style="color: #6b7280; font-size: 12px; margin-top: 10px;"><strong>Variant:</strong> ${review.review.itemSpecInfo}</p>`;
       }
 
-      descriptionHtml += '</div>';
+      html += '</div>';
+      return html;
+    };
+
+    // Show first page of reviews
+    const firstPageReviews = filteredReviews.slice(0, reviewsPerPage);
+    firstPageReviews.forEach((review: any) => {
+      descriptionHtml += renderReview(review);
     });
+
+    // Add remaining reviews in collapsible sections
+    for (let page = 1; page < totalPages; page++) {
+      const pageReviews = filteredReviews.slice(page * reviewsPerPage, (page + 1) * reviewsPerPage);
+
+      if (pageReviews.length > 0) {
+        descriptionHtml += `
+          <details style="margin: 20px 0;">
+            <summary style="cursor: pointer; padding: 15px 24px; background: #3b82f6; color: white; border-radius: 8px; font-weight: bold; text-align: center; user-select: none; font-size: 16px;">
+              Load More Reviews (${pageReviews.length} more)
+            </summary>
+            <div style="margin-top: 15px;">
+        `;
+
+        pageReviews.forEach((review: any) => {
+          descriptionHtml += renderReview(review);
+        });
+
+        descriptionHtml += `
+            </div>
+          </details>
+        `;
+      }
+    }
 
     descriptionHtml += '</div>';
   }
@@ -330,9 +401,13 @@ async function publishToShopify(product: any, store: any) {
   let shopifyVariants: any[] = [];
   let shopifyOptions: any[] = [];
 
+  console.log('[Shopify Variants] Raw product.variants:', JSON.stringify(product.variants, null, 2));
+
   if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    console.log('[Shopify Variants] Found', product.variants.length, 'variant types');
     // Extract variant types (e.g., Color, Size) - limit to 3 options (Shopify max)
     const validVariants = product.variants.filter((v: any) => v.values && v.values.length > 0).slice(0, 3);
+    console.log('[Shopify Variants] Valid variants after filtering:', validVariants.length);
 
     validVariants.forEach((variant: any, idx: number) => {
       shopifyOptions.push({
@@ -408,6 +483,9 @@ async function publishToShopify(product: any, store: any) {
   console.log('[Shopify] Publishing product with', shopifyVariants.length, 'variants to', store.shopifyDomain);
   console.log('[Shopify] Product title:', product.title);
   console.log('[Shopify] Options:', shopifyOptions.length > 0 ? shopifyOptions.map(o => o.name).join(', ') : 'none');
+  console.log('[Shopify] Full options structure:', JSON.stringify(shopifyOptions, null, 2));
+  console.log('[Shopify] First 3 variants:', JSON.stringify(shopifyVariants.slice(0, 3), null, 2));
+  console.log('[Shopify] Total images:', allImages.length);
 
   const response = await fetch(`https://${store.shopifyDomain}/admin/api/2024-01/products.json`, {
     method: "POST",

@@ -46,6 +46,7 @@ export default function ImportFromLink() {
   const [connectedStores, setConnectedStores] = useState<ConnectedStore[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>("");
   const [loadingStores, setLoadingStores] = useState(false);
+  const [showAllDescImages, setShowAllDescImages] = useState(false);
 
   const reviewsPerPage = 10;
 
@@ -187,7 +188,9 @@ export default function ImportFromLink() {
   // Filter reviews to only show 3+ stars
   const filteredReviews = productData
     ? productData.reviews.filter((review: any) => {
-        const stars = review.review?.reviewStarts || 0;
+        // Check for typo variations in API field name
+        const stars = review.review?.reviewStarts || review.review?.reviewStars || review.review?.rating || 0;
+        console.log('[Review Filter] Review stars:', stars, 'Review:', review.review);
         return stars >= 3;
       })
     : [];
@@ -448,9 +451,19 @@ export default function ImportFromLink() {
               {/* Description Images */}
               {productData.descriptionImages && productData.descriptionImages.length > 0 && (
                 <div>
-                  <h4 className="text-base md:text-lg font-semibold text-slate-900 mb-4">Product Detail Images</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-base md:text-lg font-semibold text-slate-900">Product Detail Images</h4>
+                    {productData.descriptionImages.length > 4 && (
+                      <button
+                        onClick={() => setShowAllDescImages(!showAllDescImages)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+                      >
+                        {showAllDescImages ? 'Show Less' : `View All (${productData.descriptionImages.length})`}
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {productData.descriptionImages.map((img, idx) => (
+                    {(showAllDescImages ? productData.descriptionImages : productData.descriptionImages.slice(0, 4)).map((img: string, idx: number) => (
                       <div key={idx} className="relative h-96 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-200">
                         <Image
                           src={img}
@@ -461,6 +474,11 @@ export default function ImportFromLink() {
                       </div>
                     ))}
                   </div>
+                  {!showAllDescImages && productData.descriptionImages.length > 4 && (
+                    <p className="text-sm text-slate-500 mt-3 text-center">
+                      +{productData.descriptionImages.length - 4} more images
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -553,10 +571,6 @@ export default function ImportFromLink() {
                     {productData.reviews.length} ratings
                   </span>
                 </div>
-
-                <p className="text-sm text-slate-500 mb-4">
-                  Showing {filteredReviews.length} reviews (3+ stars)
-                </p>
 
                 {/* Review List */}
                 <div className="space-y-4">
@@ -691,7 +705,7 @@ export default function ImportFromLink() {
                       </button>
                     </div>
                     <p className="text-xs md:text-sm text-slate-500 text-center px-4">
-                      Showing {(currentReviewPage - 1) * reviewsPerPage + 1}-{Math.min(currentReviewPage * reviewsPerPage, filteredReviews.length)} of {filteredReviews.length} reviews (3+ stars)
+                      Showing {(currentReviewPage - 1) * reviewsPerPage + 1}-{Math.min(currentReviewPage * reviewsPerPage, filteredReviews.length)} of {filteredReviews.length} reviews
                     </p>
                   </div>
                 )}
