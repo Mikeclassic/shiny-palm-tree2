@@ -173,14 +173,20 @@ export default function ImportFromLink() {
     }
   };
 
-  // Calculate pagination
-  const totalReviewPages = productData ? Math.ceil(productData.reviews.length / reviewsPerPage) : 0;
-  const paginatedReviews = productData
-    ? productData.reviews.slice(
-        (currentReviewPage - 1) * reviewsPerPage,
-        currentReviewPage * reviewsPerPage
-      )
+  // Filter reviews to only show 3+ stars
+  const filteredReviews = productData
+    ? productData.reviews.filter((review: any) => {
+        const stars = review.review?.reviewStarts || 0;
+        return stars >= 3;
+      })
     : [];
+
+  // Calculate pagination
+  const totalReviewPages = Math.ceil(filteredReviews.length / reviewsPerPage);
+  const paginatedReviews = filteredReviews.slice(
+    (currentReviewPage - 1) * reviewsPerPage,
+    currentReviewPage * reviewsPerPage
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 md:p-8">
@@ -492,7 +498,7 @@ export default function ImportFromLink() {
                 {/* Featured Review Images */}
                 {(() => {
                   const allReviewImages: string[] = [];
-                  productData.reviews.forEach((review: any) => {
+                  filteredReviews.forEach((review: any) => {
                     if (review.review?.reviewImages && Array.isArray(review.review.reviewImages)) {
                       allReviewImages.push(...review.review.reviewImages);
                     }
@@ -523,6 +529,23 @@ export default function ImportFromLink() {
                   }
                   return null;
                 })()}
+
+                {/* Average Rating Display */}
+                <div className="mb-6 p-4 bg-slate-50 rounded-lg text-center">
+                  <span className="text-xl md:text-2xl font-bold text-slate-900">
+                    {productData.reviewStats?.evarageStar || productData.reviewStats?.averageStar || 0}
+                  </span>
+                  <span className="text-lg md:text-xl mx-2">
+                    {'⭐'.repeat(Math.round(productData.reviewStats?.evarageStar || productData.reviewStats?.averageStar || 0))}
+                  </span>
+                  <span className="text-base md:text-lg text-slate-600">
+                    {productData.reviews.length} ratings
+                  </span>
+                </div>
+
+                <p className="text-sm text-slate-500 mb-4">
+                  Showing {filteredReviews.length} reviews (3+ stars)
+                </p>
 
                 {/* Review List */}
                 <div className="space-y-4">
@@ -657,7 +680,7 @@ export default function ImportFromLink() {
                       </button>
                     </div>
                     <p className="text-xs md:text-sm text-slate-500 text-center px-4">
-                      Showing {(currentReviewPage - 1) * reviewsPerPage + 1}-{Math.min(currentReviewPage * reviewsPerPage, productData.reviews.length)} of {productData.reviews.length} reviews
+                      Showing {(currentReviewPage - 1) * reviewsPerPage + 1}-{Math.min(currentReviewPage * reviewsPerPage, filteredReviews.length)} of {filteredReviews.length} reviews (3+ stars)
                     </p>
                   </div>
                 )}

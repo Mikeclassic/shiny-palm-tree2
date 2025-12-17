@@ -202,9 +202,15 @@ async function publishToShopify(product: any, store: any) {
       `;
     }
 
-    // Collect all review images from all reviews
+    // Filter reviews to only show 3+ stars
+    const filteredReviews = product.reviews.filter((review: any) => {
+      const stars = review.review?.reviewStarts || 0;
+      return stars >= 3;
+    });
+
+    // Collect all review images from filtered reviews
     const allReviewImages: string[] = [];
-    product.reviews.forEach((review: any) => {
+    filteredReviews.forEach((review: any) => {
       if (review.review?.reviewImages && Array.isArray(review.review.reviewImages)) {
         allReviewImages.push(...review.review.reviewImages);
       }
@@ -232,15 +238,23 @@ async function publishToShopify(product: any, store: any) {
       `;
     }
 
-    // Add pagination info
-    const totalReviews = product.reviews.length;
-    const reviewsPerPage = 10;
-    const totalPages = Math.ceil(totalReviews / reviewsPerPage);
+    // Add average rating display
+    const averageRating = product.reviewStats?.evarageStar || product.reviewStats?.averageStar || 0;
+    const totalRatings = product.reviews.length;
+    const stars = '⭐'.repeat(Math.round(averageRating));
 
-    descriptionHtml += `<div style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">Showing all ${totalReviews} reviews</div>`;
+    descriptionHtml += `
+      <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; text-align: center;">
+        <span style="font-size: 20px; font-weight: bold; color: #374151;">${averageRating}</span>
+        <span style="font-size: 18px; margin: 0 8px;">${stars}</span>
+        <span style="font-size: 16px; color: #6b7280;">${totalRatings} ratings</span>
+      </div>
+    `;
 
-    // Add ALL reviews (not just first 10)
-    product.reviews.forEach((review: any, index: number) => {
+    descriptionHtml += `<div style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">Showing ${filteredReviews.length} reviews (3+ stars)</div>`;
+
+    // Add filtered reviews (3+ stars only)
+    filteredReviews.forEach((review: any, index: number) => {
       const stars = '⭐'.repeat(review.review?.reviewStarts || 0);
       const reviewContent = review.review?.translation?.reviewContent || review.review?.reviewContent || '';
       let buyerName = review.buyer?.buyerTitle || 'Anonymous';
