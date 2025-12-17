@@ -153,21 +153,32 @@ export default function ImportFromLink() {
 
       const data = await response.json();
 
+      console.log('[Publish] Response:', response.ok, data);
+
       if (!response.ok) {
+        console.error('[Publish] Error response:', data);
         throw new Error(data.error || 'Failed to publish to Shopify');
       }
 
-      setFetchProgress("Product published to Shopify successfully!");
+      if (!data.success || !data.externalUrl) {
+        console.error('[Publish] Invalid response:', data);
+        throw new Error('Invalid response from server');
+      }
+
+      console.log('[Publish] Successfully published:', data.externalUrl);
+      setFetchProgress(`✅ Published! View product: ${data.externalUrl}`);
       setListingGenerated(true);
 
-      // Show success message
-      setTimeout(() => {
-        setFetchProgress("");
-      }, 3000);
+      // Don't auto-hide success message so user can see the URL
+      // setTimeout(() => {
+      //   setFetchProgress("");
+      // }, 3000);
 
     } catch (err: any) {
-      setError(err.message || 'Failed to publish to Shopify');
-      console.error('Error publishing:', err);
+      const errorMessage = err.message || 'Failed to publish to Shopify';
+      setError(errorMessage);
+      console.error('[Publish] Error:', err);
+      setFetchProgress("");
     } finally {
       setGeneratingListing(false);
     }

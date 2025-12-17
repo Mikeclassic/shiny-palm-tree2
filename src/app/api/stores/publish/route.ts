@@ -61,7 +61,9 @@ export async function POST(req: Request) {
       // Attach additional data for Shopify publishing
       product.descriptionImages = productData.descriptionImages || [];
       product.reviews = productData.reviews || [];
+      product.reviewStats = productData.reviewStats || {};
       product.images = productData.images || [];
+      product.variants = productData.variants || [];
     } else if (productId) {
       // Get existing product
       product = await db.product.findUnique({
@@ -403,6 +405,10 @@ async function publishToShopify(product: any, store: any) {
     },
   };
 
+  console.log('[Shopify] Publishing product with', shopifyVariants.length, 'variants to', store.shopifyDomain);
+  console.log('[Shopify] Product title:', product.title);
+  console.log('[Shopify] Options:', shopifyOptions.length > 0 ? shopifyOptions.map(o => o.name).join(', ') : 'none');
+
   const response = await fetch(`https://${store.shopifyDomain}/admin/api/2024-01/products.json`, {
     method: "POST",
     headers: {
@@ -413,11 +419,23 @@ async function publishToShopify(product: any, store: any) {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Shopify API error: ${error}`);
+    const errorText = await response.text();
+    console.error('[Shopify] API error response:', errorText);
+    let errorMessage = `Shopify API error (${response.status}): ${errorText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.errors) {
+        errorMessage = `Shopify API error: ${JSON.stringify(errorJson.errors)}`;
+      }
+    } catch (e) {
+      // Error text is not JSON, use as is
+    }
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
+  console.log('[Shopify] Successfully created product:', data.product.id);
+
   const productHandle = data.product.handle;
 
   return {
